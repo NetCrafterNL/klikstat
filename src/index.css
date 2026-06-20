@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --c-primary: #5B4BE8;
+  --c-primary-hover: #4F40D6;
+  --c-primary-deep: #4536C4;
+  --c-violet-light: #7A6BFF;
+  --c-violet-tint: #EEEBFD;
+  --c-bg: #F4F3FB;
+  --c-surface: #FFFFFF;
+  --c-surface-alt: #FBFBF9;
+  --c-border: #EAE8F4;
+  --c-border-input: #E2E1DB;
+  --c-text-primary: #1C1B22;
+  --c-text-body: #26252E;
+  --c-text-body2: #45444E;
+  --c-text-muted: #6B6A75;
+  --c-text-muted2: #8A8893;
+  --c-text-muted3: #9A98A6;
+  --c-green: #1F9D55;
+  --c-green-text: #167C43;
+  --c-green-tint: #E7F6EC;
+  --c-blue: #2C6FE0;
+  --c-blue-tint: #E9F0FE;
+  --c-amber: #D98324;
+  --c-amber-tint: #FDF0E2;
+  --c-orange: #FF9F6B;
+  --c-teal: #36C28E;
+  --c-danger: #D24A4F;
+  --c-danger-tint: #FDF2F2;
+
+  --shadow-btn: 0 4px 14px rgba(91,75,232,.32);
+  --shadow-btn-sm: 0 3px 10px rgba(91,75,232,.28);
+  --shadow-dropdown: 0 12px 32px rgba(40,30,90,.14);
+  --shadow-focus: 0 0 0 3px rgba(91,75,232,.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--c-bg);
+  color: var(--c-text-body);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+a { text-decoration: none; color: inherit; }
+
+@keyframes ks-pulse {
+  0%   { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes ks-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* Shared live-dot used across Dashboard & Realtime */
+.live-dot {
+  position: relative;
+  display: inline-flex;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+.live-dot-inner {
+  width: 8px;
+  height: 8px;
+  background: #4dde8c;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+}
+.live-dot-ring {
+  position: absolute;
+  inset: 0;
+  background: #4dde8c;
+  border-radius: 50%;
+  animation: ks-pulse 2s ease-out infinite;
+}

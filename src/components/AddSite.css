@@ -1,0 +1,198 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 34, .52);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-card {
+  background: var(--c-surface);
+  border-radius: 22px;
+  width: 100%;
+  max-width: 540px;
+  padding: 28px;
+  box-shadow: 0 24px 64px rgba(40,30,90,.22);
+  animation: modal-in 200ms ease;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--c-text-primary);
+}
+
+.modal-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-text-muted3);
+  transition: background 150ms;
+  cursor: pointer;
+}
+.modal-close:hover { background: var(--c-bg); }
+
+/* Form */
+.modal-field { margin-bottom: 16px; }
+
+.modal-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-body);
+  margin-bottom: 6px;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 10px 13px;
+  background: var(--c-surface-alt);
+  border: 1.5px solid var(--c-border-input);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--c-text-primary);
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+  font-family: inherit;
+}
+.modal-input:focus {
+  border-color: var(--c-primary);
+  box-shadow: var(--shadow-focus);
+  background: white;
+}
+
+.modal-submit {
+  width: 100%;
+  padding: 13px;
+  background: var(--c-primary);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 11px;
+  border: none;
+  box-shadow: var(--shadow-btn);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 150ms;
+  margin-top: 4px;
+}
+.modal-submit:hover { background: var(--c-primary-hover); }
+.modal-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Snippet step */
+.snippet-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  margin-bottom: 8px;
+}
+
+.snippet-box {
+  position: relative;
+  background: #1C1B22;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.snippet-code {
+  font-family: ui-monospace, Menlo, Monaco, 'Courier New', monospace;
+  font-size: 12.5px;
+  color: #C9C1FF;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.65;
+  user-select: all;
+}
+
+.snippet-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,.75);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 150ms;
+}
+.snippet-copy-btn:hover { background: rgba(255,255,255,.18); }
+
+.snippet-note {
+  font-size: 12.5px;
+  color: var(--c-text-muted3);
+  margin-bottom: 18px;
+  line-height: 1.6;
+}
+
+.snippet-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.demo-btn {
+  flex: 1;
+  padding: 11px;
+  border: 1.5px solid var(--c-border-btn);
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--c-text-body2);
+  background: white;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 150ms, background 150ms;
+}
+.demo-btn:hover { border-color: #aaa; background: var(--c-bg); }
+.demo-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.done-btn {
+  flex: 1;
+  padding: 11px;
+  background: var(--c-primary);
+  color: white;
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow-btn-sm);
+  transition: background 150ms;
+}
+.done-btn:hover { background: var(--c-primary-hover); }
+
+.snippet-success {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 13px;
+  background: var(--c-green-tint);
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-green-text);
+  margin-bottom: 14px;
+}

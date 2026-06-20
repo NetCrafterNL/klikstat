@@ -1,0 +1,17 @@
+export const COUNTRY_NAMES = {
+  US: 'United States', GB: 'United Kingdom', DE: 'Germany',
+  FR: 'France',        CA: 'Canada',         AU: 'Australia',
+  IN: 'India',         BR: 'Brazil',          JP: 'Japan',
+  CN: 'China',         MX: 'Mexico',          ES: 'Spain',
+  IT: 'Italy',         NL: 'Netherlands',     PL: 'Poland',
+  RU: 'Russia',        SE: 'Sweden',          NO: 'Norway',
+  CH: 'Switzerland',   AT: 'Austria',         BE: 'Belgium',
+  DK: 'Denmark',       FI: 'Finland',         PT: 'Portugal',
+  NZ: 'New Zealand',   SG: 'Singapore',       KR: 'South Korea',
+  ZA: 'South Africa',  TR: 'Turkey',          AR: 'Argentina',
+  CL: 'Chile',         CO: 'Colombia',        ID: 'Indonesia',
+  TH: 'Thailand',      MY: 'Malaysia',        PH: 'Philippines',
+  HK: 'Hong Kong',     TW: 'Taiwan',          UA: 'Ukraine',
+  CZ: 'Czech Republic',HU: 'Hungary',         RO: 'Romania',
+  XX: 'Unknown',
+}

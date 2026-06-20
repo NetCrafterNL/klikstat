@@ -1,0 +1,351 @@
+.login-page {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Left brand panel */
+.login-brand {
+  flex: 1 1 48%;
+  background: radial-gradient(120% 130% at 85% 5%, #7A6BFF 0%, #5B4BE8 45%, #4030B8 100%);
+  padding: 40px 52px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-brand-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,.07);
+  pointer-events: none;
+}
+.login-brand-circle-1 {
+  width: 420px;
+  height: 420px;
+  right: -120px;
+  top: -140px;
+}
+.login-brand-circle-2 {
+  width: 300px;
+  height: 300px;
+  right: 60px;
+  top: 120px;
+  background: rgba(255,255,255,.04);
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.brand-logo-badge {
+  width: 32px;
+  height: 32px;
+  background: rgba(255,255,255,.22);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brand-logo-word {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: white;
+}
+
+.brand-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  padding: 40px 0;
+}
+
+.brand-headline {
+  font-size: 34px;
+  font-weight: 800;
+  color: white;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+  margin-bottom: 16px;
+  max-width: 360px;
+}
+
+.brand-sub {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255,255,255,.72);
+  line-height: 1.65;
+  max-width: 340px;
+  margin-bottom: 36px;
+}
+
+/* Floating glass card */
+.brand-glass-card {
+  background: rgba(255,255,255,.12);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 18px;
+  padding: 20px 22px;
+  max-width: 290px;
+  animation: ks-float 5s ease-in-out infinite;
+}
+
+.glass-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.glass-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,.72);
+}
+
+.glass-live-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,.15);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: white;
+}
+
+.glass-live-dot {
+  width: 7px;
+  height: 7px;
+  background: #4dde8c;
+  border-radius: 50%;
+  position: relative;
+}
+.glass-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #4dde8c;
+  border-radius: 50%;
+  animation: ks-pulse 2s ease-out infinite;
+}
+
+.glass-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.glass-value {
+  font-size: 34px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -.03em;
+}
+
+.glass-delta {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgba(255,255,255,.8);
+}
+
+/* Simple sparkline SVG */
+.glass-sparkline {
+  width: 100%;
+  height: 32px;
+  opacity: .75;
+}
+
+.brand-trust {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255,255,255,.55);
+  position: relative;
+  z-index: 1;
+}
+
+/* Right form panel */
+.login-form-panel {
+  flex: 1 1 52%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  background: white;
+}
+
+.login-form-inner {
+  width: 100%;
+  max-width: 380px;
+}
+
+.login-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--c-text-primary);
+  letter-spacing: -.02em;
+  margin-bottom: 6px;
+}
+
+.login-sub {
+  font-size: 14px;
+  color: var(--c-text-muted);
+  margin-bottom: 28px;
+}
+
+.sso-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px;
+  border: 1.5px solid var(--c-border-input);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text-body);
+  background: white;
+  margin-bottom: 10px;
+  transition: border-color 150ms, background 150ms;
+}
+.sso-btn:hover { border-color: #aaa; background: var(--c-bg); }
+
+.login-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  font-size: 13px;
+  color: var(--c-text-muted3);
+}
+.login-or::before, .login-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--c-border);
+}
+
+.form-field {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-body);
+  margin-bottom: 6px;
+}
+
+.form-input-wrap {
+  position: relative;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--c-surface-alt);
+  border: 1.5px solid var(--c-border-input);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--c-text-primary);
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.form-input:focus {
+  border-color: var(--c-primary);
+  box-shadow: var(--shadow-focus);
+  background: white;
+}
+
+.form-input-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--c-text-muted3);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.form-row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.form-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--c-text-body2);
+  cursor: pointer;
+}
+
+.custom-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--c-border-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 150ms, border-color 150ms;
+}
+.custom-checkbox.checked {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+}
+
+.forgot-link {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--c-primary);
+}
+.forgot-link:hover { text-decoration: underline; }
+
+.btn-primary {
+  width: 100%;
+  padding: 13px;
+  background: var(--c-primary);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 11px;
+  border: none;
+  box-shadow: var(--shadow-btn);
+  transition: background 150ms;
+  margin-top: 4px;
+}
+.btn-primary:hover { background: var(--c-primary-hover); }
+
+.login-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--c-text-muted);
+}
+.login-footer a {
+  color: var(--c-primary);
+  font-weight: 700;
+}
+.login-footer a:hover { text-decoration: underline; }
