@@ -113,20 +113,8 @@ export default function AddSite({ onClose, onSiteAdded }) {
               {' '}Point the <code style={{ background: 'var(--c-bg)', padding: '1px 4px', borderRadius: 3, fontSize: 11.5 }}>src</code> URL to your deployed Klikstat domain in production.
             </p>
 
-            {demoDone && (
-              <div className="snippet-success">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8l4 4 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                30 days of demo data generated — check the dashboard!
-              </div>
-            )}
-
             <div className="snippet-actions">
-              <button className="demo-btn" onClick={handleDemo} disabled={demoLoading || demoDone}>
-                {demoLoading ? 'Generating…' : demoDone ? '✓ Demo data added' : '✦ Generate demo data'}
-              </button>
-              <button className="done-btn" onClick={() => onSiteAdded(site)}>
+              <button className="done-btn" onClick={() => onSiteAdded(site)} style={{ flex: 'none', width: '100%' }}>
                 Go to dashboard →
               </button>
             </div>
