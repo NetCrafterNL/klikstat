@@ -90,7 +90,7 @@ export default function App() {
         )}
         {screen === 'pages'   && <Pages   siteId={siteId} range={range} />}
         {screen === 'sources' && <Sources siteId={siteId} range={range} />}
-        {screen === 'funnels' && <Funnels />}
+        {screen === 'funnels' && <Funnels siteId={siteId} range={range} />}
         {screen === 'profile' && (
           <Profile user={user} onLogout={handleLogout} isDemo={!session} />
         )}
