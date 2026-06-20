@@ -1,0 +1,121 @@
+.pages-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+
+.pages-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--c-text-primary);
+  letter-spacing: -.02em;
+  flex-shrink: 0;
+}
+
+.pages-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--c-surface);
+  border: 1.5px solid var(--c-border-input);
+  border-radius: 10px;
+  padding: 7px 12px;
+  max-width: 260px;
+  width: 100%;
+  transition: border-color 150ms;
+}
+.pages-search-wrap:focus-within { border-color: var(--c-primary); box-shadow: var(--shadow-focus); }
+
+.pages-search {
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--c-text-body);
+  width: 100%;
+}
+.pages-search::placeholder { color: var(--c-text-muted3); }
+
+.pages-card {
+  background: var(--c-surface);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.pages-header-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 100px 110px 110px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-bg);
+}
+
+.pages-header-row span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--c-text-muted3);
+}
+
+.pages-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 100px 110px 110px;
+  align-items: center;
+  padding: 0 20px;
+  height: 44px;
+  position: relative;
+  border-bottom: 1px solid var(--c-border);
+  transition: background 100ms;
+}
+.pages-row:last-child { border-bottom: none; }
+.pages-row:hover { background: var(--c-bg); }
+
+.pages-row-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--c-violet-tint);
+  pointer-events: none;
+  transition: width 300ms ease;
+}
+
+.pages-col-main {
+  position: relative;
+  z-index: 1;
+  padding-right: 16px;
+}
+
+.pages-col {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+}
+
+.pages-path {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--c-text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 6px;
+}
+
+.pages-num {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--c-text-muted2);
+}
+
+.pages-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--c-text-muted3);
+  font-size: 14px;
+  font-weight: 600;
+}

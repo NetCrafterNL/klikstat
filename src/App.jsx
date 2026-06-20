@@ -6,6 +6,9 @@ import AddSite from './components/AddSite'
 import Dashboard from './screens/Dashboard'
 import Realtime from './screens/Realtime'
 import Profile from './screens/Profile'
+import Pages from './screens/Pages'
+import Sources from './screens/Sources'
+import Funnels from './screens/Funnels'
 import Login from './screens/Login'
 
 const DEMO_USER = { email: 'demo@klikstat.com', user_metadata: { name: 'Jordan Diaz' } }
@@ -16,6 +19,7 @@ export default function App() {
   const [sites, setSites]                   = useState([])
   const [currentSiteIdx, setCurrentSiteIdx] = useState(0)
   const [screen, setScreen]                 = useState('dashboard')
+  const [range, setRange]                   = useState('30d')
   const [switcherOpen, setSwitcherOpen]     = useState(false)
   const [showAddSite, setShowAddSite]       = useState(false)
   const [realtimeCount, setRealtimeCount]   = useState(0)
@@ -49,19 +53,17 @@ export default function App() {
     setCurrentSiteIdx(0)
   }, [])
 
-  // Still resolving session — show nothing briefly
   if (session === undefined) return null
-
-  // Show login screen when explicitly navigated to (e.g. from demo banner)
   if (screen === 'login' && !session) return <Login />
 
-  // Use real session data if logged in, otherwise demo values
-  const user        = session?.user ?? DEMO_USER
+  const user           = session?.user ?? DEMO_USER
   const effectiveSites = session ? sites : [DEMO_SITE]
   const currentSite    = effectiveSites[currentSiteIdx] ?? null
+  const siteId         = currentSite?.id ?? null
+  const siteName       = currentSite?.name ?? 'Demo'
 
   return (
-    <div className="app-shell" onClick={() => setSwitcherOpen(false)}>
+    <div className="app-shell" onClick={() => setSwitcherOpen(false)} onClickCapture={() => {}}>
       <TopBar
         user={user}
         sites={effectiveSites}
@@ -75,19 +77,20 @@ export default function App() {
         realtimeCount={realtimeCount}
         onLogout={handleLogout}
         isDemo={!session}
+        range={range}
+        onRangeChange={setRange}
       />
 
       <main className="app-content">
         {screen === 'dashboard' && (
-          <Dashboard
-            siteId={currentSite?.id ?? null}
-            siteName={currentSite?.name ?? 'Demo'}
-            userName={user.user_metadata?.name ?? user.email}
-          />
+          <Dashboard siteId={siteId} siteName={siteName} userName={user.user_metadata?.name ?? user.email} range={range} />
         )}
         {screen === 'realtime' && (
-          <Realtime siteId={currentSite?.id ?? null} onOnlineCount={setRealtimeCount} />
+          <Realtime siteId={siteId} onOnlineCount={setRealtimeCount} />
         )}
+        {screen === 'pages'   && <Pages   siteId={siteId} range={range} />}
+        {screen === 'sources' && <Sources siteId={siteId} range={range} />}
+        {screen === 'funnels' && <Funnels />}
         {screen === 'profile' && (
           <Profile user={user} onLogout={handleLogout} isDemo={!session} />
         )}
@@ -102,10 +105,10 @@ export default function App() {
           <div style={{ background:'white', borderRadius:20, padding:32, maxWidth:400, textAlign:'center' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize:17, fontWeight:800, marginBottom:10 }}>Sign in to add a website</div>
             <div style={{ fontSize:14, color:'var(--c-text-muted)', marginBottom:20 }}>Create a free account to start tracking your sites.</div>
-            <a href="/login" style={{ display:'inline-block', padding:'11px 28px', background:'var(--c-primary)', color:'white', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}
-              onClick={() => setScreen('login')}>
+            <button style={{ padding:'11px 28px', background:'var(--c-primary)', color:'white', borderRadius:10, fontWeight:700, fontSize:14, border:'none', cursor:'pointer', boxShadow:'var(--shadow-btn)' }}
+              onClick={() => { setShowAddSite(false); setScreen('login') }}>
               Get started
-            </a>
+            </button>
           </div>
         </div>
       )}

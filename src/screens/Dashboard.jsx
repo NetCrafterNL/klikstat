@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react' // useState used for stats/loading
 import './Dashboard.css'
 import { supabase } from '../lib/supabase'
 import { COUNTRY_NAMES } from '../data/countries'
@@ -49,15 +49,16 @@ const STAT_META = [
   { key: 'pageviews',   label: 'Pageviews',   iconBg: '#EEEBFD', iconColor: '#5B4BE8', icon: <path d="M4 13h8M4 9h8M4 5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>, fmt: v => Number(v).toLocaleString() },
   { key: 'bounceRate',  label: 'Bounce rate', iconBg: '#E9F0FE', iconColor: '#2C6FE0', icon: <><path d="M5 13l3-5 3 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M11 5l-3 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></>, fmt: v => `${Number(v).toFixed(0)}%` },
   { key: 'avgDuration', label: 'Avg. visit',  iconBg: '#FDF0E2', iconColor: '#D98324', icon: <><circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.6"/><path d="M9 6v3l2 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></>, fmt: formatDuration },
-  { key: 'conversions', label: 'Goals',       iconBg: '#E7F6EC', iconColor: '#1F9D55', icon: <path d="M3 9l4 4 7-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>, fmt: () => '—' },
+  { key: 'goals',       label: 'Goals',       iconBg: '#E7F6EC', iconColor: '#1F9D55', icon: <path d="M3 9l4 4 7-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>, fmt: v => Number(v).toLocaleString() },
 ]
 
 function Skeleton({ w = '100%', h = 18, r = 8, mb = 0 }) {
   return <div style={{ width: w, height: h, borderRadius: r, background: 'linear-gradient(90deg,#EEEBFD 25%,#F4F3FB 50%,#EEEBFD 75%)', backgroundSize: '200%', animation: 'shimmer 1.4s infinite', marginBottom: mb }} />
 }
 
-export default function Dashboard({ siteId, siteName, userName }) {
-  const [range, setRange]     = useState('30d')
+function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : 30 }
+
+export default function Dashboard({ siteId, siteName, userName, range = '30d' }) {
   const [stats, setStats]     = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -66,10 +67,7 @@ export default function Dashboard({ siteId, siteName, userName }) {
   useEffect(() => {
     if (!siteId) { setStats(DEMO_STATS); setLoading(false); return }
     setLoading(true)
-    supabase.rpc('get_site_stats', {
-      p_site_id: siteId,
-      p_days: range === '30d' ? 30 : range === '7d' ? 7 : 1,
-    })
+    supabase.rpc('get_site_stats', { p_site_id: siteId, p_days: rangeToDays(range) })
       .then(({ data, error }) => {
         if (!error) setStats(data)
         setLoading(false)
@@ -133,12 +131,7 @@ export default function Dashboard({ siteId, siteName, userName }) {
       <div className="mid-grid">
         <div className="card">
           <div className="card-header">
-            <span className="card-title">Visitors this month</span>
-            <div className="range-pills">
-              {['30d','7d','24h'].map(r => (
-                <button key={r} className={`range-pill${range === r ? ' active' : ''}`} onClick={() => setRange(r)}>{r}</button>
-              ))}
-            </div>
+            <span className="card-title">Visitors over time</span>
           </div>
           <div className="chart-wrap">
             {loading ? (

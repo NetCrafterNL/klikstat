@@ -59,7 +59,9 @@
   margin-left: auto;
 }
 
-/* Date range button */
+/* Date range button + dropdown */
+.range-wrap { position: relative; }
+
 .date-range-btn {
   display: flex;
   align-items: center;
@@ -71,9 +73,40 @@
   font-weight: 600;
   color: var(--c-text-body2);
   background: var(--c-surface);
+  cursor: pointer;
   transition: border-color 150ms, background 150ms;
+  white-space: nowrap;
 }
 .date-range-btn:hover { background: var(--c-bg); }
+
+.range-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 180px;
+  background: var(--c-surface);
+  border-radius: 14px;
+  box-shadow: var(--shadow-dropdown);
+  border: 1px solid var(--c-border);
+  overflow: hidden;
+  z-index: 200;
+  padding: 4px;
+}
+
+.range-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--c-text-body2);
+  cursor: pointer;
+  transition: background 100ms;
+}
+.range-option:hover { background: var(--c-bg); }
+.range-option.active { color: var(--c-primary); font-weight: 700; }
 
 /* Avatar */
 .topbar-avatar {

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import './TopBar.css'
 
 const PALETTE = ['#5B4BE8','#2C6FE0','#36C28E','#D98324','#D24A4F','#FF9F6B','#9B59B6']
@@ -15,6 +16,13 @@ const NAV_TABS = [
   { id: 'profile',   label: 'Settings' },
 ]
 
+const RANGES = [
+  { id: '1d',  label: 'Today' },
+  { id: '7d',  label: 'Last 7 days' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: '90d', label: 'Last 3 months' },
+]
+
 function initials(user) {
   const name = user?.user_metadata?.name ?? user?.email ?? ''
   return name.split(/\s+/).map(w => w[0] ?? '').join('').slice(0,2).toUpperCase() || '?'
@@ -24,9 +32,11 @@ export default function TopBar({
   user, sites, currentSiteIdx, switcherOpen,
   onToggleSwitcher, onSelectSite, onAddSite,
   activeScreen, onNavigate, realtimeCount, isDemo,
-  onLogout,
+  onLogout, range = '30d', onRangeChange,
 }) {
-  const currentSite = sites[currentSiteIdx]
+  const [rangeOpen, setRangeOpen] = useState(false)
+  const currentSite  = sites[currentSiteIdx]
+  const rangeLabel   = RANGES.find(r => r.id === range)?.label ?? 'Last 30 days'
 
   return (
     <>
@@ -101,16 +111,39 @@ export default function TopBar({
           )}
 
           <div className="topbar-right">
-            <button className="date-range-btn">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="1.5" y="2.5" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M1.5 5.5h11M4.5 1v3M9.5 1v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
-              Last 30 days
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+            {/* Date range dropdown */}
+            <div className="range-wrap" onClick={e => e.stopPropagation()}>
+              <button className="date-range-btn" onClick={() => setRangeOpen(v => !v)}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <rect x="1.5" y="2.5" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M1.5 5.5h11M4.5 1v3M9.5 1v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                {rangeLabel}
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: rangeOpen ? 'rotate(180deg)' : undefined, transition:'transform 150ms' }}>
+                  <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {rangeOpen && (
+                <div className="range-dropdown">
+                  {RANGES.map(r => (
+                    <div
+                      key={r.id}
+                      className={`range-option${range === r.id ? ' active' : ''}`}
+                      onClick={() => { onRangeChange?.(r.id); setRangeOpen(false) }}
+                    >
+                      {r.label}
+                      {range === r.id && (
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M2.5 7l4 4 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div
               className={`topbar-avatar${activeScreen === 'profile' ? ' active' : ''}`}
               onClick={() => onNavigate(activeScreen === 'profile' ? 'dashboard' : 'profile')}
