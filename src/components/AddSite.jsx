@@ -19,9 +19,10 @@ export default function AddSite({ onClose, onSiteAdded }) {
     setLoading(true)
     try {
       const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
+      const { data: { user } } = await supabase.auth.getUser()
       const { data, error } = await supabase
         .from('sites')
-        .insert({ name: name.trim(), domain: cleanDomain })
+        .insert({ name: name.trim(), domain: cleanDomain, user_id: user.id })
         .select()
         .single()
       if (error) throw error
