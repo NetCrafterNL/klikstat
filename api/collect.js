@@ -17,7 +17,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
   try {
-    const { token, type = 'pageview', pathname, referrer = '', width } = req.body ?? {}
+    const { token, type = 'pageview', pathname, referrer = '', width,
+            utm_source = '', utm_medium = '', utm_campaign = '' } = req.body ?? {}
     if (!token || !pathname) return res.status(400).json({ error: 'missing token or pathname' })
 
     // Resolve site from token
@@ -77,6 +78,9 @@ export default async function handler(req, res) {
       site_id: site.id, session_id: sessionId,
       type, pathname, referrer: referrer || null,
       country, browser, os, device, timestamp: now,
+      utm_source:   utm_source   || null,
+      utm_medium:   utm_medium   || null,
+      utm_campaign: utm_campaign || null,
     })
 
     return res.status(204).end()

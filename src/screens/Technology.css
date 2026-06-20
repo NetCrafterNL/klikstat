@@ -1,0 +1,129 @@
+.tech-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.tech-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--c-text-primary);
+  letter-spacing: -.02em;
+  flex-shrink: 0;
+}
+
+.tech-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.tech-tab {
+  padding: 5px 16px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-muted2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 120ms, color 120ms;
+}
+.tech-tab:hover  { background: var(--c-bg); color: var(--c-text-body2); }
+.tech-tab.active { background: var(--c-primary); color: white; }
+
+.tech-card {
+  background: var(--c-surface);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.tech-header-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 80px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-bg);
+}
+.tech-header-row span {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--c-text-muted3);
+}
+.tech-header-row .tech-col { text-align: right; }
+
+.tech-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 80px;
+  align-items: center;
+  padding: 0 20px;
+  height: 46px;
+  position: relative;
+  border-bottom: 1px solid var(--c-border);
+  transition: background 100ms;
+}
+.tech-row:last-child { border-bottom: none; }
+.tech-row:hover { background: var(--c-bg); }
+
+.tech-row-bar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: var(--c-violet-tint);
+  pointer-events: none;
+  transition: width 300ms ease;
+}
+
+.tech-col-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-left: 4px;
+}
+
+.tech-col {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+}
+
+.tech-icon {
+  color: var(--c-text-muted2);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tech-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--c-text-body);
+}
+
+.tech-num {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--c-text-muted2);
+}
+
+.tech-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-primary);
+}
+
+.tech-empty {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text-muted3);
+}

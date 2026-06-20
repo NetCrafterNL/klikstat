@@ -58,13 +58,14 @@ function Skeleton({ w = '100%', h = 18, r = 8, mb = 0 }) {
 
 function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : 30 }
 
-export default function Dashboard({ siteId, siteName, userName, range = '30d' }) {
-  const [stats, setStats]     = useState(null)
-  const [loading, setLoading] = useState(true)
+export default function Dashboard({ siteId, siteName, userName, range = '30d', preloadedStats }) {
+  const [stats, setStats]     = useState(preloadedStats ?? null)
+  const [loading, setLoading] = useState(!preloadedStats)
 
   const firstName = (userName ?? '').split(/\s+/)[0] || 'there'
 
   useEffect(() => {
+    if (preloadedStats) { setStats(preloadedStats); setLoading(false); return }
     if (!siteId) { setStats(DEMO_STATS); setLoading(false); return }
     setLoading(true)
     supabase.rpc('get_site_stats', { p_site_id: siteId, p_days: rangeToDays(range) })
@@ -72,7 +73,7 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d' })
         if (!error) setStats(data)
         setLoading(false)
       })
-  }, [siteId, range])
+  }, [siteId, range, preloadedStats])
 
   const { line, area, last } = buildChartPath(stats?.chart)
 

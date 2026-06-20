@@ -8,12 +8,14 @@ function siteColor(site) {
 }
 
 const NAV_TABS = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'realtime',  label: 'Realtime', liveCount: true },
-  { id: 'pages',     label: 'Pages' },
-  { id: 'sources',   label: 'Sources' },
-  { id: 'funnels',   label: 'Funnels' },
-  { id: 'profile',   label: 'Settings' },
+  { id: 'dashboard',  label: 'Dashboard' },
+  { id: 'realtime',   label: 'Realtime', liveCount: true },
+  { id: 'pages',      label: 'Pages' },
+  { id: 'sources',    label: 'Sources' },
+  { id: 'technology', label: 'Technology' },
+  { id: 'goals',      label: 'Goals' },
+  { id: 'funnels',    label: 'Funnels' },
+  { id: 'profile',    label: 'Settings' },
 ]
 
 const RANGES = [
@@ -32,7 +34,7 @@ export default function TopBar({
   user, sites, currentSiteIdx, switcherOpen,
   onToggleSwitcher, onSelectSite, onAddSite,
   activeScreen, onNavigate, realtimeCount, isDemo,
-  onLogout, range = '30d', onRangeChange,
+  onLogout, range = '30d', onRangeChange, onTogglePublic,
 }) {
   const [rangeOpen, setRangeOpen] = useState(false)
   const currentSite  = sites[currentSiteIdx]
@@ -98,6 +100,23 @@ export default function TopBar({
                       )}
                     </div>
                   ))}
+                  {currentSite?.public_token && (
+                    <>
+                      <div className="dropdown-divider" />
+                      <div className="dropdown-item" onClick={() => onTogglePublic?.(currentSite)}>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                          <path d="M8 2c-1.5 2-2 4-2 6s.5 4 2 6M8 2c1.5 2 2 4 2 6s-.5 4-2 6M2 8h12" stroke="currentColor" strokeWidth="1.4"/>
+                        </svg>
+                        <span style={{ flex:1, fontSize:13.5, fontWeight:600 }}>
+                          {currentSite.is_public ? 'Public link (on)' : 'Share publicly'}
+                        </span>
+                        {currentSite.is_public && (
+                          <span style={{ fontSize:11, fontWeight:700, color:'var(--c-green-text)', background:'var(--c-green-tint)', padding:'2px 7px', borderRadius:999 }}>On</span>
+                        )}
+                      </div>
+                    </>
+                  )}
                   <div className="dropdown-divider" />
                   <div className="dropdown-add" onClick={onAddSite}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

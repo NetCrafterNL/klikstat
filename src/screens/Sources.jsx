@@ -57,18 +57,21 @@ const DEMO_DATA = [
   { source: 'producthunt.com', channel: 'Referral', visitors: 290, pageviews: 380 },
 ]
 
-const CHANNELS = ['All', 'Search', 'Social', 'Direct', 'Referral']
+const CHANNELS = ['All', 'Search', 'Social', 'Direct', 'Referral', 'Campaigns']
 
 function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : 30 }
 
 export default function Sources({ siteId, range }) {
-  const [rows, setRows]           = useState(null)
-  const [loading, setLoading]     = useState(true)
-  const [activeChannel, setActive] = useState('All')
+  const [rows, setRows]             = useState(null)
+  const [campaigns, setCampaigns]   = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [activeChannel, setActive]  = useState('All')
 
   useEffect(() => {
     if (!siteId) { setRows(DEMO_DATA); setLoading(false); return }
     setLoading(true)
+    supabase.rpc('get_campaigns', { p_site_id: siteId, p_days: rangeToDays(range) })
+      .then(({ data }) => { if (data) setCampaigns(data) })
     supabase.rpc('get_sources', { p_site_id: siteId, p_days: rangeToDays(range) })
       .then(({ data, error }) => {
         if (!error && data) setRows(data)
@@ -97,6 +100,32 @@ export default function Sources({ siteId, range }) {
         </div>
       </div>
 
+      {activeChannel === 'Campaigns' ? (
+        <div className="sources-card">
+          <div className="sources-header-row" style={{ gridTemplateColumns:'1fr 130px 130px 90px 100px' }}>
+            <span className="sources-col-main">Campaign</span>
+            <span className="sources-col-ch">Source</span>
+            <span className="sources-col-ch">Medium</span>
+            <span className="sources-col">Visitors</span>
+            <span className="sources-col">Pageviews</span>
+          </div>
+          {!campaigns || campaigns.length === 0 ? (
+            <div className="sources-empty">
+              No UTM campaigns tracked yet. Add <code style={{ background:'var(--c-bg)', padding:'1px 5px', borderRadius:4, fontSize:12 }}>?utm_campaign=name</code> to your links.
+            </div>
+          ) : (
+            campaigns.map((c, i) => (
+              <div key={i} className="sources-row" style={{ gridTemplateColumns:'1fr 130px 130px 90px 100px' }}>
+                <span className="sources-col-main"><span className="sources-domain">{c.campaign}</span></span>
+                <span className="sources-col-ch" style={{ textAlign:'left', paddingLeft:4, fontSize:13, color:'var(--c-text-muted2)', fontWeight:600 }}>{c.source}</span>
+                <span className="sources-col-ch" style={{ textAlign:'left', paddingLeft:4, fontSize:13, color:'var(--c-text-muted2)', fontWeight:600 }}>{c.medium}</span>
+                <span className="sources-col sources-num">{Number(c.visitors).toLocaleString()}</span>
+                <span className="sources-col sources-num">{Number(c.pageviews).toLocaleString()}</span>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
       <div className="sources-card">
         <div className="sources-header-row">
           <span className="sources-col-main">Source</span>
@@ -136,6 +165,7 @@ export default function Sources({ siteId, range }) {
           ))
         )}
       </div>
+      )}
     </>
   )
 }
