@@ -6,6 +6,7 @@ import AddSite from './components/AddSite'
 import Dashboard from './screens/Dashboard'
 import Realtime from './screens/Realtime'
 import Profile from './screens/Profile'
+import Login from './screens/Login'
 
 const DEMO_USER = { email: 'demo@klikstat.com', user_metadata: { name: 'Jordan Diaz' } }
 const DEMO_SITE = { id: null, name: 'Klikstat App', domain: 'app.klikstat.com' }
@@ -24,6 +25,11 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s ?? null))
     return () => subscription.unsubscribe()
   }, [])
+
+  // After sign-in, drop back to dashboard
+  useEffect(() => {
+    if (session) setScreen('dashboard')
+  }, [session])
 
   useEffect(() => {
     if (!session) { setSites([]); return }
@@ -45,6 +51,9 @@ export default function App() {
 
   // Still resolving session — show nothing briefly
   if (session === undefined) return null
+
+  // Show login screen when explicitly navigated to (e.g. from demo banner)
+  if (screen === 'login' && !session) return <Login />
 
   // Use real session data if logged in, otherwise demo values
   const user        = session?.user ?? DEMO_USER
