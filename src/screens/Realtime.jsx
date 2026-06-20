@@ -64,7 +64,7 @@ export default function Realtime({ siteId, onOnlineCount }) {
     }
 
     poll()
-    const id = setInterval(poll, 10_000)
+    const id = setInterval(poll, 5_000)
     return () => { active = false; clearInterval(id) }
   }, [siteId])
 
