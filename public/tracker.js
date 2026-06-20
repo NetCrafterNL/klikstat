@@ -5,9 +5,9 @@
   var token   = script && script.getAttribute('data-token')
   if (!token) return
 
-  // Derive API endpoint from the script's own src URL
-  var base     = (script.src || '').replace(/\/tracker\.js(\?.*)?$/, '')
-  var endpoint = base + '/api/collect'
+  // Prefer explicit data-api attribute, fall back to deriving from script src
+  var apiBase  = script.getAttribute('data-api') || (script.src || '').replace(/\/[^/]*tracker\.js(\?.*)?$/, '')
+  var endpoint = apiBase.replace(/\/$/, '') + '/api/collect'
 
   function send(pathname) {
     var payload = JSON.stringify({
