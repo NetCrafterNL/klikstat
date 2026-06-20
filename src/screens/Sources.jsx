@@ -3,6 +3,41 @@ import './Sources.css'
 import { supabase } from '../lib/supabase'
 import { channels as SEED_CH } from '../data/seed'
 
+function SourceIcon({ source, channel }) {
+  const [failed, setFailed] = useState(false)
+
+  if (source === 'Direct') {
+    return (
+      <span className="sources-avatar" style={{ background: '#F4F3FB' }}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1l6 6-6 6M1 7h12" stroke="var(--c-text-muted2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </span>
+    )
+  }
+
+  if (!failed) {
+    return (
+      <span className="sources-avatar sources-avatar-favicon">
+        <img
+          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(source)}&sz=32`}
+          alt={source}
+          width="16"
+          height="16"
+          onError={() => setFailed(true)}
+          style={{ borderRadius: 2 }}
+        />
+      </span>
+    )
+  }
+
+  return (
+    <span className="sources-avatar" style={{ background: CHANNEL_COLORS[channel] ?? '#C9C1FF' }}>
+      {(source[0] ?? '?').toUpperCase()}
+    </span>
+  )
+}
+
 const CHANNEL_COLORS = {
   Direct: '#C9C1FF', Search: '#5B4BE8', Social: '#FF9F6B',
   Referral: '#36C28E', Email: '#A6A4AE',
@@ -85,9 +120,7 @@ export default function Sources({ siteId, range }) {
             <div key={i} className="sources-row">
               <div className="sources-row-bar" style={{ width:`${(r.visitors/maxVisitors*100).toFixed(1)}%` }} />
               <span className="sources-col-main">
-                <span className="sources-avatar" style={{ background: CHANNEL_COLORS[r.channel] ?? '#C9C1FF' }}>
-                  {(r.source[0] ?? '?').toUpperCase()}
-                </span>
+                <SourceIcon source={r.source} channel={r.channel} />
                 <span className="sources-domain">{r.source}</span>
               </span>
               <span className="sources-col-ch">

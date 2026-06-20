@@ -112,6 +112,11 @@
   flex-shrink: 0;
   opacity: .85;
 }
+.sources-avatar-favicon {
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  opacity: 1;
+}
 
 .sources-domain {
   font-size: 13.5px;
