@@ -1,6 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import './Realtime.css'
 import { supabase } from '../lib/supabase'
+import { activePages as SEED_PAGES, liveEvents as SEED_EVENTS, realtimeBars as SEED_BARS } from '../data/seed'
+
+const DEMO_RT = {
+  onlineNow: 24,
+  histogram: SEED_BARS.map((count, i) => ({ bucket: SEED_BARS.length - 1 - i, count })),
+  activePages: SEED_PAGES.map(p => ({ pathname: p.path, count: p.count })),
+  liveEvents: SEED_EVENTS.map((e, i) => ({
+    country: e.country, pathname: e.page,
+    referrer: e.source === 'Google' ? 'https://google.com' : '',
+    ts: Math.floor(Date.now() / 1000) - i * 14,
+  })),
+}
 
 function buildHistogram(rawBuckets) {
   // rawBuckets = [{bucket: 0..29, count}] — bucket 0 = most recent minute
@@ -43,6 +55,7 @@ export default function Realtime({ siteId, onOnlineCount }) {
     let active = true
 
     function poll() {
+      if (!siteId) { setRt(DEMO_RT); onOnlineCount?.(DEMO_RT.onlineNow); return }
       supabase.rpc('get_realtime', { p_site_id: siteId }).then(({ data }) => {
         if (!active || !data) return
         setRt(data)

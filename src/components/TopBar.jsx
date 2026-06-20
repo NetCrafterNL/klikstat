@@ -23,11 +23,22 @@ function initials(user) {
 export default function TopBar({
   user, sites, currentSiteIdx, switcherOpen,
   onToggleSwitcher, onSelectSite, onAddSite,
-  activeScreen, onNavigate, realtimeCount,
+  activeScreen, onNavigate, realtimeCount, isDemo,
+  onLogout,
 }) {
   const currentSite = sites[currentSiteIdx]
 
   return (
+    <>
+    {isDemo && (
+      <div style={{ background:'var(--c-primary)', color:'white', fontSize:12.5, fontWeight:600, textAlign:'center', padding:'7px 16px', letterSpacing:'.01em' }}>
+        Viewing demo data —{' '}
+        <a href="#" style={{ color:'white', textDecoration:'underline' }} onClick={e => { e.preventDefault(); onNavigate('login') }}>
+          Sign in
+        </a>
+        {' '}to connect a real site
+      </div>
+    )}
     <header className="topbar">
       <div className="topbar-inner">
         <div className="topbar-row1">
@@ -125,5 +136,6 @@ export default function TopBar({
         </nav>
       </div>
     </header>
+    </>
   )
 }

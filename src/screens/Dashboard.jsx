@@ -2,6 +2,16 @@ import { useState, useEffect } from 'react'
 import './Dashboard.css'
 import { supabase } from '../lib/supabase'
 import { COUNTRY_NAMES } from '../data/countries'
+import { chartData as SEED_CHART, channels as SEED_CHANNELS, topPages as SEED_PAGES, locations as SEED_LOCS } from '../data/seed'
+
+// Demo stats shown when no real site is connected
+const DEMO_STATS = {
+  visitors: 18420, pageviews: 52180, bounceRate: 41.2, avgDuration: 168,
+  chart:    SEED_CHART.map((v, i) => ({ day: `2026-05-${String(i + 21).padStart(2,'0')}`, v })),
+  topPages: SEED_PAGES.map(p => ({ pathname: p.path, count: p.count })),
+  locations: SEED_LOCS.map(l => ({ country: l.code, count: l.count })),
+  channels:  SEED_CHANNELS.map(c => ({ name: c.name, count: Math.round(c.percent * 182) })),
+}
 
 const W = 480, H = 130
 
@@ -54,7 +64,7 @@ export default function Dashboard({ siteId, siteName, userName }) {
   const firstName = (userName ?? '').split(/\s+/)[0] || 'there'
 
   useEffect(() => {
-    if (!siteId) return
+    if (!siteId) { setStats(DEMO_STATS); setLoading(false); return }
     setLoading(true)
     supabase.rpc('get_site_stats', {
       p_site_id: siteId,
