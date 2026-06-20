@@ -20,10 +20,12 @@ function SourceIcon({ source, channel }) {
     return (
       <span className="sources-avatar sources-avatar-favicon">
         <img
-          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(source)}&sz=32`}
+          src={`https://icons.duckduckgo.com/ip3/${encodeURIComponent(source)}.ico`}
           alt={source}
           width="16"
           height="16"
+          loading="eager"
+          decoding="async"
           onError={() => setFailed(true)}
           style={{ borderRadius: 2 }}
         />
