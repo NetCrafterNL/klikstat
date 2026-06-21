@@ -51,11 +51,14 @@ export default function Realtime({ siteId, onOnlineCount }) {
   const tickRef = useRef(0)
 
   useEffect(() => {
-    if (!siteId) return
+    if (!siteId) {
+      setRt(DEMO_RT)
+      onOnlineCount?.(DEMO_RT.onlineNow)
+      return
+    }
     let active = true
 
     function poll() {
-      if (!siteId) { setRt(DEMO_RT); onOnlineCount?.(DEMO_RT.onlineNow); return }
       supabase.rpc('get_realtime', { p_site_id: siteId }).then(({ data }) => {
         if (!active || !data) return
         setRt(data)

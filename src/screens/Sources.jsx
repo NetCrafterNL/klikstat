@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './Sources.css'
 import { supabase } from '../lib/supabase'
+import { downloadCSV } from '../lib/csv'
 import { channels as SEED_CH } from '../data/seed'
 
 function SourceIcon({ source, channel }) {
@@ -59,7 +60,7 @@ const DEMO_DATA = [
 
 const CHANNELS = ['All', 'Search', 'Social', 'Direct', 'Referral', 'Campaigns']
 
-function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : 30 }
+function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
 export default function Sources({ siteId, range }) {
   const [rows, setRows]             = useState(null)
@@ -86,6 +87,23 @@ export default function Sources({ siteId, range }) {
     <>
       <div className="sources-title-row">
         <h1 className="sources-title">Sources</h1>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <button
+          onClick={() => {
+            const data = activeChannel === 'Campaigns' ? (campaigns ?? []) : filtered
+            const cols = activeChannel === 'Campaigns'
+              ? [{ key:'campaign', label:'Campaign' }, { key:'source', label:'Source' }, { key:'medium', label:'Medium' }, { key:'visitors', label:'Visitors' }, { key:'pageviews', label:'Pageviews' }]
+              : [{ key:'source', label:'Source' }, { key:'channel', label:'Channel' }, { key:'visitors', label:'Visitors' }, { key:'pageviews', label:'Pageviews' }]
+            downloadCSV('klikstat-sources.csv', data, cols)
+          }}
+          style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:10, background:'var(--c-surface)', border:'1.5px solid var(--c-border)', fontSize:12.5, fontWeight:700, color:'var(--c-text-muted2)', cursor:'pointer', flexShrink:0 }}
+          title="Export CSV"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M6.5 1v7M4 6l2.5 2.5L9 6M1.5 9.5v1A1.5 1.5 0 003 12h7a1.5 1.5 0 001.5-1.5v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          CSV
+        </button>
         <div className="sources-channel-tabs">
           {CHANNELS.map(c => (
             <button
@@ -97,6 +115,7 @@ export default function Sources({ siteId, range }) {
               {c}
             </button>
           ))}
+        </div>
         </div>
       </div>
 

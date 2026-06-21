@@ -28,6 +28,7 @@
   --c-teal: #36C28E;
   --c-danger: #D24A4F;
   --c-danger-tint: #FDF2F2;
+  --c-danger-border: #F5C2C4;
 
   --shadow-btn: 0 4px 14px rgba(91,75,232,.32);
   --shadow-btn-sm: 0 3px 10px rgba(91,75,232,.28);
@@ -82,4 +83,28 @@ a { text-decoration: none; color: inherit; }
   background: #4dde8c;
   border-radius: 50%;
   animation: ks-pulse 2s ease-out infinite;
+}
+
+/* ─── Dark mode ──────────────────────────────────────────────────────────── */
+body.dark {
+  --c-primary:       #7A6BFF;
+  --c-primary-hover: #8F82FF;
+  --c-violet-tint:   rgba(122,107,255,.15);
+  --c-bg:            #0F0E17;
+  --c-surface:       #1A1925;
+  --c-surface-alt:   #201E2C;
+  --c-border:        #2A2838;
+  --c-border-input:  #332F44;
+  --c-text-primary:  #F2F0FF;
+  --c-text-body:     #DCD9EF;
+  --c-text-body2:    #B8B4D4;
+  --c-text-muted:    #8A87A8;
+  --c-text-muted2:   #6E6B8A;
+  --c-text-muted3:   #574F6E;
+  --c-green-tint:    rgba(31,157,85,.15);
+  --c-green-text:    #4ADE80;
+  --c-blue-tint:     rgba(44,111,224,.15);
+  --c-amber-tint:    rgba(217,131,36,.15);
+  --c-danger-tint:   rgba(210,74,79,.15);
+  --c-danger-border: rgba(210,74,79,.3);
 }

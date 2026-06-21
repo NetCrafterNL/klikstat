@@ -8,6 +8,7 @@ function siteColor(site) {
 }
 
 const NAV_TABS = [
+  { id: 'overview',   label: 'Overview' },
   { id: 'dashboard',  label: 'Dashboard' },
   { id: 'realtime',   label: 'Realtime', liveCount: true },
   { id: 'pages',      label: 'Pages' },
@@ -15,14 +16,16 @@ const NAV_TABS = [
   { id: 'technology', label: 'Technology' },
   { id: 'goals',      label: 'Goals' },
   { id: 'funnels',    label: 'Funnels' },
+  { id: 'retention',  label: 'Retention' },
   { id: 'profile',    label: 'Settings' },
 ]
 
 const RANGES = [
-  { id: '1d',  label: 'Today' },
-  { id: '7d',  label: 'Last 7 days' },
-  { id: '30d', label: 'Last 30 days' },
-  { id: '90d', label: 'Last 3 months' },
+  { id: '1d',   label: 'Today' },
+  { id: '7d',   label: 'Last 7 days' },
+  { id: '30d',  label: 'Last 30 days' },
+  { id: '90d',  label: 'Last 3 months' },
+  { id: '365d', label: 'Last 12 months' },
 ]
 
 function initials(user) {
@@ -34,7 +37,7 @@ export default function TopBar({
   user, sites, currentSiteIdx, switcherOpen,
   onToggleSwitcher, onSelectSite, onAddSite,
   activeScreen, onNavigate, realtimeCount, isDemo,
-  onLogout, range = '30d', onRangeChange, onTogglePublic,
+  onLogout, range = '30d', onRangeChange, onTogglePublic, onDeleteSite,
 }) {
   const [rangeOpen, setRangeOpen] = useState(false)
   const currentSite  = sites[currentSiteIdx]
@@ -124,6 +127,20 @@ export default function TopBar({
                     </svg>
                     Add a website
                   </div>
+                  {currentSite && !isDemo && (
+                    <>
+                      <div className="dropdown-divider" />
+                      <div
+                        className="dropdown-item dropdown-item-danger"
+                        onClick={() => { onDeleteSite?.(currentSite); setSwitcherOpen(false) }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 5h10M6 5V3.5h4V5M6.5 11V7M9.5 11V7M4 5l.7 9h6.6L12 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Delete this site
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

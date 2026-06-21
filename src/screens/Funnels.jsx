@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import './Funnels.css'
 import { supabase } from '../lib/supabase'
 
-function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : 30 }
+function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
 // ─── Create / Edit Modal ───────────────────────────────────────────────────
 function FunnelModal({ siteId, funnel, onClose, onSaved }) {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import './Goals.css'
 import { supabase } from '../lib/supabase'
 
-function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : 30 }
+function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
 // ─── Create Goal Modal ─────────────────────────────────────────────────────
 function GoalModal({ siteId, onClose, onSaved }) {
@@ -75,16 +75,19 @@ export default function Goals({ siteId, range }) {
   const [goals, setGoals]         = useState([])
   const [data, setData]           = useState(null)
   const [loading, setLoading]     = useState(true)
-  const [showModal, setShowModal] = useState(false)
+  const [showModal, setShowModal]   = useState(false)
+  const [revenue, setRevenue]       = useState(null)
 
   async function load() {
     if (!siteId) { setLoading(false); return }
-    const [{ data: goalsData }, { data: statsData }] = await Promise.all([
+    const [{ data: goalsData }, { data: statsData }, { data: revData }] = await Promise.all([
       supabase.from('goals').select('*').eq('site_id', siteId).order('created_at'),
-      supabase.rpc('get_goals_data', { p_site_id: siteId, p_days: rangeToDays(range) }),
+      supabase.rpc('get_goals_data',   { p_site_id: siteId, p_days: rangeToDays(range) }),
+      supabase.rpc('get_revenue_stats',{ p_site_id: siteId, p_days: rangeToDays(range) }),
     ])
     if (goalsData) setGoals(goalsData)
     if (statsData) setData(statsData)
+    if (revData)   setRevenue(revData)
     setLoading(false)
   }
 
@@ -99,9 +102,24 @@ export default function Goals({ siteId, range }) {
   function afterSave() { setShowModal(false); setLoading(true); load() }
 
   const statsMap = Object.fromEntries((data ?? []).map(d => [d.id, d]))
+  const hasRevenue = revenue && Number(revenue.total) > 0
 
   return (
     <>
+      {hasRevenue && (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:18 }}>
+          {[
+            { label:'Revenue', val:`$${Number(revenue.total).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'var(--c-green-text)' },
+            { label:'Transactions', val:Number(revenue.count).toLocaleString(), color:'var(--c-primary)' },
+            { label:'Avg. order value', val:`$${Number(revenue.avg).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'var(--c-amber)' },
+          ].map(s => (
+            <div key={s.label} style={{ background:'var(--c-surface)', borderRadius:16, padding:'18px 20px' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--c-text-muted)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:8 }}>{s.label}</div>
+              <div style={{ fontSize:24, fontWeight:800, color:s.color, letterSpacing:'-.01em' }}>{s.val}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="goals-title-row">
         <h1 className="goals-title">Goals</h1>
         {siteId && (

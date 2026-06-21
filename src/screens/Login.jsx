@@ -22,6 +22,7 @@ export default function Login() {
   const [remember, setRemember]   = useState(true)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -44,6 +45,19 @@ export default function Login() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleForgot(e) {
+    e.preventDefault()
+    if (!email) { setError('Enter your email address first.'); return }
+    setError('')
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
+    setLoading(false)
+    if (error) setError(error.message)
+    else setForgotSent(true)
   }
 
   async function handleOAuth(provider) {
@@ -141,7 +155,11 @@ export default function Login() {
             <div className="form-field">
               <div className="form-row-between" style={{ marginBottom: 6 }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>Password</label>
-                {mode === 'login' && <a href="#" className="forgot-link">Forgot?</a>}
+                {mode === 'login' && (
+                  forgotSent
+                    ? <span style={{ fontSize:12.5, color:'var(--c-green-text)', fontWeight:700 }}>✓ Check your email</span>
+                    : <a href="#" className="forgot-link" onClick={handleForgot}>Forgot?</a>
+                )}
               </div>
               <div className="form-input-wrap">
                 <input

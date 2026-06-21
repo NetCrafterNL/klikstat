@@ -119,3 +119,51 @@
   font-size: 14px;
   font-weight: 600;
 }
+
+/* Tabs */
+.pages-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.pages-tab {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-text-muted2);
+  background: var(--c-surface);
+  border: 1.5px solid var(--c-border);
+  cursor: pointer;
+  transition: all 150ms;
+}
+.pages-tab:hover { color: var(--c-text-body2); border-color: var(--c-border-input); }
+.pages-tab.active { background: var(--c-primary); border-color: var(--c-primary); color: white; }
+
+/* Export button */
+.pages-export-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1.5px solid var(--c-border);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--c-text-muted2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 150ms, color 150ms;
+}
+.pages-export-btn:hover { border-color: var(--c-border-input); color: var(--c-text-body2); }
+
+/* Entry/Exit row grid variants */
+.pages-header-entry,
+.pages-row-entry {
+  grid-template-columns: 1fr 110px 110px !important;
+}
+.pages-header-exit,
+.pages-row-exit {
+  grid-template-columns: 1fr 110px !important;
+}

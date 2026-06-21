@@ -1,13 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './Profile.css'
 import { supabase } from '../lib/supabase'
 
 const SUBNAV = [
   { id: 'profile',  label: 'Profile',  icon: <path d="M9 9a3 3 0 100-6 3 3 0 000 6zM3 17c0-3.31 2.69-6 6-6s6 2.69 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/> },
   { id: 'security', label: 'Security', icon: <path d="M9 3L3 6v5c0 3.55 2.58 6.87 6 7.67C12.42 17.87 15 14.55 15 11V6L9 3z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/> },
+  { id: 'api',      label: 'API',      icon: <><path d="M5 9l-3 3 3 3M13 9l3 3-3 3M9 5l-2 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></> },
+  { id: 'reports',  label: 'Reports',  icon: <><rect x="2" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M6 8h6M6 11h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></> },
   { id: 'team',     label: 'Team',     icon: <><path d="M13 14c0-1.86-1.79-3-4-3s-4 1.14-4 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><circle cx="9" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.6"/><path d="M16 14c0-1.36-1.12-2.5-3-2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><circle cx="13.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.6"/></> },
   { id: 'billing',  label: 'Billing',  icon: <><rect x="2" y="5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M2 9h14" stroke="currentColor" strokeWidth="1.6"/></> },
 ]
+
+function randomKey() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  return 'ks_live_' + Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
 
 function initials(user) {
   const name = user?.user_metadata?.name ?? user?.email ?? ''
@@ -19,7 +26,7 @@ function joinedDate(user) {
   return new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
-export default function Profile({ user, onLogout, isDemo }) {
+export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark, sites }) {
   const [activeNav, setActiveNav]   = useState('profile')
   const [twoFA, setTwoFA]           = useState(false)
   const [name, setName]             = useState(user?.user_metadata?.name ?? '')
@@ -28,6 +35,55 @@ export default function Profile({ user, onLogout, isDemo }) {
   const [saving, setSaving]         = useState(false)
   const [saved, setSaved]           = useState(false)
   const [showPwForm, setShowPwForm] = useState(false)
+  const [apiKeys, setApiKeys]       = useState([])
+  const [newKeyLabel, setNewKeyLabel] = useState('')
+  const [newKeyPlain, setNewKeyPlain] = useState(null)
+  const [emailSubs, setEmailSubs]   = useState([])
+  const [emailForm, setEmailForm]   = useState({ email: user?.email ?? '', frequency: 'weekly', siteId: '' })
+  const [emailSaved, setEmailSaved] = useState(false)
+
+  useEffect(() => {
+    if (isDemo || activeNav !== 'api') return
+    supabase.from('api_keys').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data) setApiKeys(data) })
+  }, [activeNav, isDemo])
+
+  useEffect(() => {
+    if (isDemo || activeNav !== 'reports') return
+    supabase.from('email_subscriptions').select('*').then(({ data }) => { if (data) setEmailSubs(data) })
+  }, [activeNav, isDemo])
+
+  async function handleCreateKey(e) {
+    e.preventDefault()
+    if (!newKeyLabel.trim()) return
+    const plain = randomKey()
+    const hash  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(plain))
+    const keyHash = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('')
+    const { data } = await supabase.from('api_keys').insert({ label: newKeyLabel.trim(), key_hash: keyHash, user_id: user.id }).select().single()
+    if (data) { setApiKeys(prev => [data, ...prev]); setNewKeyPlain(plain); setNewKeyLabel('') }
+  }
+
+  async function handleDeleteKey(id) {
+    await supabase.from('api_keys').delete().eq('id', id)
+    setApiKeys(prev => prev.filter(k => k.id !== id))
+  }
+
+  async function handleSaveEmailSub(e) {
+    e.preventDefault()
+    const { email, frequency, siteId } = emailForm
+    if (!email || !siteId) return
+    const { data } = await supabase.from('email_subscriptions')
+      .upsert({ site_id: siteId, user_id: user.id, email, frequency, enabled: true }, { onConflict: 'site_id,user_id' })
+      .select().single()
+    if (data) {
+      setEmailSubs(prev => { const f = prev.filter(s => s.site_id !== siteId); return [data, ...f] })
+      setEmailSaved(true); setTimeout(() => setEmailSaved(false), 2000)
+    }
+  }
+
+  async function handleToggleEmailSub(sub) {
+    const { data } = await supabase.from('email_subscriptions').update({ enabled: !sub.enabled }).eq('id', sub.id).select().single()
+    if (data) setEmailSubs(prev => prev.map(s => s.id === sub.id ? data : s))
+  }
   const [newPw, setNewPw]           = useState('')
   const [confirmPw, setConfirmPw]   = useState('')
   const [pwError, setPwError]       = useState('')
@@ -179,10 +235,124 @@ export default function Profile({ user, onLogout, isDemo }) {
 
               <div className="security-row">
                 <div className="security-info">
+                  <div className="security-info-title">Dark mode</div>
+                  <div className="security-info-sub">Switch to a dark color theme</div>
+                </div>
+                <div className="toggle-wrap">
+                  <span className="toggle-label" style={{ color: darkMode ? 'var(--c-green-text)' : 'var(--c-text-muted3)' }}>{darkMode ? 'On' : 'Off'}</span>
+                  <div className={`toggle${darkMode ? ' on' : ''}`} onClick={onToggleDark}>
+                    <div className="toggle-knob" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="security-row">
+                <div className="security-info">
                   <div className="security-info-title">Active sessions</div>
                   <div className="security-info-sub">This browser — current session</div>
                 </div>
                 <button className="btn-danger" onClick={onLogout}>Sign out</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── API TAB ── */}
+          {activeNav === 'api' && (
+            <div className="profile-card">
+              <div className="card-section-title">API keys</div>
+              <div style={{ fontSize:13, color:'var(--c-text-muted)', lineHeight:1.6, marginBottom:16 }}>
+                Use your API key to read analytics data programmatically via <code style={{ background:'var(--c-bg)', padding:'1px 5px', borderRadius:4, fontSize:12 }}>GET /api/v1/stats?site_id=…</code> with <code style={{ background:'var(--c-bg)', padding:'1px 5px', borderRadius:4, fontSize:12 }}>Authorization: Bearer ks_live_…</code>
+              </div>
+
+              {newKeyPlain && (
+                <div style={{ background:'var(--c-green-tint)', border:'1.5px solid #36C28E', borderRadius:12, padding:'14px 16px', marginBottom:16 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:'var(--c-green-text)', marginBottom:8 }}>✓ Key created — copy it now, it won't be shown again.</div>
+                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                    <code style={{ flex:1, fontSize:12.5, background:'var(--c-surface)', padding:'8px 12px', borderRadius:8, color:'var(--c-text-body)', wordBreak:'break-all' }}>{newKeyPlain}</code>
+                    <button className="btn-outline" onClick={() => navigator.clipboard.writeText(newKeyPlain)}>Copy</button>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateKey} style={{ display:'flex', gap:8, marginBottom:20 }}>
+                <input className="field-input" style={{ flex:1 }} placeholder="Key label (e.g. Zapier)" value={newKeyLabel} onChange={e => setNewKeyLabel(e.target.value)} />
+                <button type="submit" className="btn-primary-sm" disabled={!newKeyLabel.trim()}>Create key</button>
+              </form>
+
+              {apiKeys.length === 0
+                ? <div style={{ color:'var(--c-text-muted3)', fontSize:13, fontWeight:600 }}>No API keys yet.</div>
+                : apiKeys.map(k => (
+                    <div key={k.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', borderBottom:'1px solid var(--c-border)' }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:14, fontWeight:700, color:'var(--c-text-body)' }}>{k.label}</div>
+                        <div style={{ fontSize:12, color:'var(--c-text-muted3)', marginTop:2 }}>
+                          Created {new Date(k.created_at).toLocaleDateString()}
+                          {k.last_used ? ` · Last used ${new Date(k.last_used).toLocaleDateString()}` : ' · Never used'}
+                        </div>
+                      </div>
+                      <code style={{ fontSize:12, color:'var(--c-text-muted3)', background:'var(--c-bg)', padding:'3px 8px', borderRadius:6 }}>ks_live_••••••••</code>
+                      <button className="btn-danger" onClick={() => handleDeleteKey(k.id)}>Delete</button>
+                    </div>
+                  ))
+              }
+            </div>
+          )}
+
+          {/* ── REPORTS TAB ── */}
+          {activeNav === 'reports' && (
+            <div className="profile-card">
+              <div className="card-section-title">Email reports</div>
+              <div style={{ fontSize:13, color:'var(--c-text-muted)', lineHeight:1.6, marginBottom:20 }}>
+                Receive an automated digest with key stats for each of your sites. Requires{' '}
+                <code style={{ background:'var(--c-bg)', padding:'1px 5px', borderRadius:4, fontSize:12 }}>RESEND_API_KEY</code> to be configured on your deployment.
+              </div>
+
+              <form onSubmit={handleSaveEmailSub} style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:20 }}>
+                <div className="fields-grid">
+                  <div className="field-group">
+                    <label className="field-label">Email address</label>
+                    <input className="field-input" type="email" value={emailForm.email} onChange={e => setEmailForm(f => ({ ...f, email: e.target.value }))} />
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Site</label>
+                    <select className="field-input field-select" value={emailForm.siteId} onChange={e => setEmailForm(f => ({ ...f, siteId: e.target.value }))}>
+                      <option value="">— select a site —</option>
+                      {(sites ?? []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Frequency</label>
+                    <select className="field-input field-select" value={emailForm.frequency} onChange={e => setEmailForm(f => ({ ...f, frequency: e.target.value }))}>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <button type="submit" className="btn-primary-sm">{emailSaved ? '✓ Saved' : 'Save subscription'}</button>
+                </div>
+              </form>
+
+              {emailSubs.length > 0 && (
+                <>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--c-text-muted3)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:10 }}>Active subscriptions</div>
+                  {emailSubs.map(s => (
+                    <div key={s.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--c-border)' }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13.5, fontWeight:700, color:'var(--c-text-body)' }}>{s.email}</div>
+                        <div style={{ fontSize:12, color:'var(--c-text-muted3)' }}>{s.frequency} · {s.last_sent ? `Last sent ${new Date(s.last_sent).toLocaleDateString()}` : 'Never sent'}</div>
+                      </div>
+                      <div className={`toggle${s.enabled ? ' on' : ''}`} onClick={() => handleToggleEmailSub(s)}>
+                        <div className="toggle-knob"/>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              <div style={{ marginTop:20, padding:14, background:'var(--c-violet-tint)', borderRadius:12, fontSize:13, color:'var(--c-primary)', fontWeight:600, lineHeight:1.5 }}>
+                To activate: add <code style={{ background:'rgba(255,255,255,.5)', padding:'1px 5px', borderRadius:4 }}>RESEND_API_KEY</code> and <code style={{ background:'rgba(255,255,255,.5)', padding:'1px 5px', borderRadius:4 }}>CRON_SECRET</code> to your Vercel env vars, then add cron jobs in vercel.json.
               </div>
             </div>
           )}

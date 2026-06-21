@@ -284,3 +284,9 @@
   padding: 1px 6px;
   border-radius: 999px;
 }
+
+.dropdown-item-danger {
+  color: var(--c-danger) !important;
+}
+.dropdown-item-danger svg { color: var(--c-danger); }
+.dropdown-item-danger:hover { background: var(--c-danger-tint) !important; }

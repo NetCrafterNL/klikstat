@@ -42,11 +42,49 @@
     send(location.pathname + location.search)
   })
 
-  // Public API for custom events: klikstat.track('signup', { revenue: 49 })
+  // ─── Scroll depth tracking ──────────────────────────────────────────────
+  var scrollFired = {}
+  var DEPTHS = [25, 50, 75, 100]
+  function getScrollPct() {
+    var el  = document.documentElement
+    var top = el.scrollTop || document.body.scrollTop
+    var h   = el.scrollHeight - el.clientHeight
+    return h > 0 ? Math.round((top / h) * 100) : 100
+  }
+  function onScroll() {
+    var pct = getScrollPct()
+    for (var i = 0; i < DEPTHS.length; i++) {
+      var d = DEPTHS[i]
+      if (pct >= d && !scrollFired[d]) {
+        scrollFired[d] = true
+        send(location.pathname + location.search, 'scroll', { depth: d })
+      }
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  // Check depth on load (page may already be scrolled via anchor)
+  setTimeout(onScroll, 500)
+
+  // ─── Outbound link tracking ─────────────────────────────────────────────
+  document.addEventListener('click', function (e) {
+    var el = e.target
+    while (el && el.tagName !== 'A') el = el.parentElement
+    if (!el) return
+    var href = el.getAttribute('href') || ''
+    if (!href.match(/^https?:\/\//)) return
+    try {
+      var host = new URL(href).hostname
+      if (host === location.hostname) return
+      send(location.pathname + location.search, 'outbound', { url: href, host: host })
+    } catch (_) {}
+  }, true)
+
+  // ─── Public API ─────────────────────────────────────────────────────────
+  // klikstat.track('purchase', { revenue: 49.99, plan: 'pro' })
   window.klikstat = {
     track: function (eventName, props) {
       if (!eventName) return
       send(location.pathname + location.search, eventName, props || {})
     }
   }
-})()
+}())

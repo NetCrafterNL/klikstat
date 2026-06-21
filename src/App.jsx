@@ -11,6 +11,8 @@ import Sources from './screens/Sources'
 import Technology from './screens/Technology'
 import Goals from './screens/Goals'
 import Funnels from './screens/Funnels'
+import Overview from './screens/Overview'
+import Retention from './screens/Retention'
 import Login from './screens/Login'
 
 const DEMO_USER = { email: 'demo@klikstat.com', user_metadata: { name: 'Jordan Diaz' } }
@@ -68,6 +70,12 @@ export default function App() {
   const [switcherOpen, setSwitcherOpen]     = useState(false)
   const [showAddSite, setShowAddSite]       = useState(false)
   const [realtimeCount, setRealtimeCount]   = useState(0)
+  const [darkMode, setDarkMode]             = useState(() => localStorage.getItem('ks-dark') === '1')
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', darkMode)
+    localStorage.setItem('ks-dark', darkMode ? '1' : '0')
+  }, [darkMode])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session ?? null))
@@ -112,6 +120,19 @@ export default function App() {
     }
   }, [])
 
+  const handleDeleteSite = useCallback(async (site) => {
+    if (!window.confirm(`Delete "${site.name}"?\n\nThis will permanently remove the site and all its analytics data. This cannot be undone.`)) return
+    const { error } = await supabase.from('sites').delete().eq('id', site.id)
+    if (!error) {
+      setSites(prev => {
+        const next = prev.filter(s => s.id !== site.id)
+        setCurrentSiteIdx(i => Math.min(i, Math.max(0, next.length - 1)))
+        return next
+      })
+      setScreen('dashboard')
+    }
+  }, [])
+
   if (session === undefined) return null
 
   // Public share page — no auth needed
@@ -144,6 +165,7 @@ export default function App() {
         range={range}
         onRangeChange={setRange}
         onTogglePublic={handleTogglePublic}
+        onDeleteSite={handleDeleteSite}
       />
 
       <main className="app-content">
@@ -153,13 +175,18 @@ export default function App() {
         {screen === 'realtime' && (
           <Realtime siteId={siteId} onOnlineCount={setRealtimeCount} />
         )}
+        {screen === 'overview'   && <Overview   range={range} onNavigateToSite={id => { const idx = sites.findIndex(s => s.id === id); if (idx >= 0) { setCurrentSiteIdx(idx); setScreen('dashboard') } }} />}
         {screen === 'pages'      && <Pages      siteId={siteId} range={range} />}
         {screen === 'sources'    && <Sources    siteId={siteId} range={range} />}
         {screen === 'technology' && <Technology siteId={siteId} range={range} />}
         {screen === 'goals'      && <Goals      siteId={siteId} range={range} />}
         {screen === 'funnels'    && <Funnels    siteId={siteId} range={range} />}
+        {screen === 'retention'  && <Retention  siteId={siteId} range={range} />}
         {screen === 'profile' && (
-          <Profile user={user} onLogout={handleLogout} isDemo={!session} />
+          <Profile user={user} onLogout={handleLogout} isDemo={!session}
+            darkMode={darkMode} onToggleDark={() => setDarkMode(v => !v)}
+            sites={effectiveSites}
+          />
         )}
       </main>
 

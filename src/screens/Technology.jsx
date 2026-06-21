@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './Technology.css'
 import { supabase } from '../lib/supabase'
+import { downloadCSV } from '../lib/csv'
 
 const TABS = ['Devices', 'Browsers', 'OS']
 const KEY  = { Devices: 'devices', Browsers: 'browsers', OS: 'os' }
@@ -32,7 +33,7 @@ const DEMO = {
   os:       [{ name:'Windows', count:8200 }, { name:'macOS', count:5600 }, { name:'iOS', count:2800 }, { name:'Android', count:1800 }, { name:'Linux', count:600 }],
 }
 
-function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : 30 }
+function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
 export default function Technology({ siteId, range }) {
   const [activeTab, setActiveTab] = useState('Devices')
@@ -56,12 +57,29 @@ export default function Technology({ siteId, range }) {
     <>
       <div className="tech-title-row">
         <h1 className="tech-title">Technology</h1>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <button
+          onClick={() => {
+            downloadCSV(`klikstat-technology-${activeTab.toLowerCase()}.csv`, rows, [
+              { key: 'name',  label: activeTab },
+              { key: 'count', label: 'Visitors' },
+            ])
+          }}
+          style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:10, background:'var(--c-surface)', border:'1.5px solid var(--c-border)', fontSize:12.5, fontWeight:700, color:'var(--c-text-muted2)', cursor:'pointer', flexShrink:0 }}
+          title="Export CSV"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M6.5 1v7M4 6l2.5 2.5L9 6M1.5 9.5v1A1.5 1.5 0 003 12h7a1.5 1.5 0 001.5-1.5v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          CSV
+        </button>
         <div className="tech-tabs">
           {TABS.map(t => (
             <button key={t} className={`tech-tab${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
               {t}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
