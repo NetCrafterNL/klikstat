@@ -153,15 +153,6 @@ export default function Goals({ siteId, range }) {
         </div>
       ) : (
         <>
-          {/* Tracker instructions banner */}
-          <div className="goals-instructions">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke="var(--c-primary)" strokeWidth="1.4"/>
-              <path d="M8 7v5M8 5v.5" stroke="var(--c-primary)" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-            The Klikstat tracker exposes <code>window.klikstat.track('event')</code> — call it anywhere on your site to record a conversion.
-          </div>
-
           <div className="goals-card">
             <div className="goals-header-row">
               <span className="goals-col-main">Goal</span>
