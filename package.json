@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
+    "express": "^5.2.1",
     "geoip-lite": "^2.0.3",
+    "node-cron": "^4.5.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "ua-parser-js": "^2.0.10"
