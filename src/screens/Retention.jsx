@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
 import './Retention.css'
-import { supabase } from '../lib/supabase'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 
 function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
@@ -18,16 +18,10 @@ function cellText(pct) {
 }
 
 export default function Retention({ siteId, range }) {
-  const [data, setData]       = useState(null)
-  const [loading, setLoading] = useState(true)
-  const weeks = range === '7d' ? 4 : range === '90d' ? 12 : range === '365d' ? 20 : 8
-
-  useEffect(() => {
-    if (!siteId) { setLoading(false); return }
-    setLoading(true)
-    supabase.rpc('get_retention', { p_site_id: siteId, p_weeks: weeks })
-      .then(({ data }) => { if (data) setData(data); setLoading(false) })
-  }, [siteId, range])
+  const weeks   = range === '7d' ? 4 : range === '90d' ? 12 : range === '365d' ? 20 : 8
+  const retQ    = useQuery(api.stats.getRetention, siteId ? { siteId, weeks } : 'skip')
+  const data    = siteId ? (retQ ?? null) : null
+  const loading = siteId ? retQ === undefined : false
 
   const maxWeek = data ? Math.max(...data.map(r => Object.keys(r.weeks).map(Number).reduce((a,b) => Math.max(a,b), 0))) : 0
 

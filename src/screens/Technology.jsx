@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './Technology.css'
-import { supabase } from '../lib/supabase'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 import { downloadCSV } from '../lib/csv'
 
 const TABS = ['Devices', 'Browsers', 'OS']
@@ -37,18 +38,12 @@ function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ?
 
 export default function Technology({ siteId, range }) {
   const [activeTab, setActiveTab] = useState('Devices')
-  const [tech, setTech]           = useState(null)
-  const [loading, setLoading]     = useState(true)
 
-  useEffect(() => {
-    if (!siteId) { setTech(DEMO); setLoading(false); return }
-    setLoading(true)
-    supabase.rpc('get_technology', { p_site_id: siteId, p_days: rangeToDays(range) })
-      .then(({ data, error }) => {
-        if (!error && data) setTech(data)
-        setLoading(false)
-      })
-  }, [siteId, range])
+  const days  = rangeToDays(range)
+  const techQ = useQuery(api.stats.getTechnology, siteId ? { siteId, days } : 'skip')
+
+  const tech    = siteId ? (techQ ?? null) : DEMO
+  const loading = siteId ? techQ === undefined : false
 
   const rows     = tech?.[KEY[activeTab]] ?? []
   const maxCount = rows[0]?.count ?? 1

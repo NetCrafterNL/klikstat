@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './Dashboard.css'
-import { supabase } from '../lib/supabase'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 import { COUNTRY_NAMES } from '../data/countries'
 import { chartData as SEED_CHART, channels as SEED_CHANNELS, topPages as SEED_PAGES, locations as SEED_LOCS } from '../data/seed'
 
@@ -126,50 +127,35 @@ function AnnotationModal({ onSave, onClose }) {
 }
 
 export default function Dashboard({ siteId, siteName, userName, range = '30d', preloadedStats }) {
-  const [stats, setStats]               = useState(preloadedStats ?? null)
-  const [prevStats, setPrevStats]       = useState(null)
-  const [loading, setLoading]           = useState(!preloadedStats)
-  const [annotations, setAnnotations]   = useState([])
-  const [annotModal, setAnnotModal]     = useState(null) // { date }
-  const [locTab, setLocTab]             = useState('country') // 'country' | 'city'
-  const [cities, setCities]             = useState(null)
+  const days = rangeToDays(range)
+  const [annotModal, setAnnotModal] = useState(null)
+  const [locTab, setLocTab]         = useState('country')
+
+  const statsQuery    = useQuery(api.stats.getSiteStats,       siteId ? { siteId, days } : 'skip')
+  const prevQuery     = useQuery(api.stats.getComparisonStats, siteId ? { siteId, days } : 'skip')
+  const annotsQuery   = useQuery(api.annotations.list,         siteId ? { siteId, days } : 'skip')
+  const citiesQuery   = useQuery(api.stats.getCityBreakdown,   (siteId && locTab === 'city') ? { siteId, days } : 'skip')
+
+  const createAnnotation = useMutation(api.annotations.create)
+  const deleteAnnotation = useMutation(api.annotations.remove)
+
+  const stats       = preloadedStats ?? (siteId ? statsQuery : DEMO_STATS)
+  const prevStats   = siteId ? prevQuery : null
+  const annotations = siteId ? (annotsQuery ?? []) : []
+  const cities      = siteId ? (citiesQuery ?? null) : null
+  const loading     = siteId ? stats === undefined : false
 
   const firstName = (userName ?? '').split(/\s+/)[0] || 'there'
-
-  useEffect(() => {
-    if (preloadedStats) { setStats(preloadedStats); setLoading(false); return }
-    if (!siteId) { setStats(DEMO_STATS); setLoading(false); return }
-    setLoading(true)
-    setPrevStats(null)
-    Promise.all([
-      supabase.rpc('get_site_stats',       { p_site_id: siteId, p_days: rangeToDays(range) }),
-      supabase.rpc('get_comparison_stats', { p_site_id: siteId, p_days: rangeToDays(range) }),
-      supabase.rpc('get_annotations',      { p_site_id: siteId, p_days: rangeToDays(range) }),
-    ]).then(([{ data, error }, { data: prev }, { data: annots }]) => {
-      if (!error) setStats(data)
-      if (prev)   setPrevStats(prev)
-      if (annots) setAnnotations(annots)
-      setLoading(false)
-    })
-  }, [siteId, range, preloadedStats])
-
-  useEffect(() => {
-    if (!siteId || locTab !== 'city') return
-    supabase.rpc('get_city_breakdown', { p_site_id: siteId, p_days: rangeToDays(range) })
-      .then(({ data }) => { if (data) setCities(data) })
-  }, [siteId, range, locTab])
 
   async function handleSaveAnnotation(label, color) {
     if (!siteId) return
     const date = annotModal?.date
     setAnnotModal(null)
-    const { data } = await supabase.from('annotations').insert({ site_id: siteId, date, label, color }).select().single()
-    if (data) setAnnotations(prev => [...prev, { id: data.id, date: data.date, label: data.label, color: data.color }])
+    await createAnnotation({ siteId, date, label, color })
   }
 
-  async function handleDeleteAnnotation(id) {
-    await supabase.from('annotations').delete().eq('id', id)
-    setAnnotations(prev => prev.filter(a => a.id !== id))
+  async function handleDeleteAnnotation(annotationId) {
+    await deleteAnnotation({ annotationId })
   }
 
   const { line, area, last } = buildChartPath(stats?.chart)
@@ -310,7 +296,7 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
                       <span key={a.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11.5, fontWeight:600, color:'var(--c-text-muted2)', background:'var(--c-bg)', borderRadius:6, padding:'2px 8px 2px 6px', border:'1px solid var(--c-border)' }}>
                         <span style={{ width:8, height:8, borderRadius:'50%', background:a.color, flexShrink:0 }}/>
                         {a.label}
-                        <button onClick={() => handleDeleteAnnotation(a.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--c-text-muted3)', fontSize:13, lineHeight:1, padding:0, marginLeft:2 }}>×</button>
+                        <button onClick={() => handleDeleteAnnotation(a._id)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--c-text-muted3)', fontSize:13, lineHeight:1, padding:0, marginLeft:2 }}>×</button>
                       </span>
                     ))}
                   </div>

@@ -3,11 +3,5 @@
   "buildCommand": "vite build",
   "devCommand": "vite",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "crons": [
-    { "path": "/api/email/weekly?frequency=daily",   "schedule": "0 8 * * *"   },
-    { "path": "/api/email/weekly?frequency=weekly",  "schedule": "0 8 * * 1"   },
-    { "path": "/api/email/weekly?frequency=monthly", "schedule": "0 8 1 * *"   },
-    { "path": "/api/alerts/check",                   "schedule": "0 9 * * *"   }
-  ]
+  "installCommand": "npm install"
 }

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './Goals.css'
-import { supabase } from '../lib/supabase'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 
 function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
@@ -10,18 +11,20 @@ function GoalModal({ siteId, onClose, onSaved }) {
   const [event, setEvent]   = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
+  const createGoal = useMutation(api.goals.create)
 
   async function handleSave(e) {
     e.preventDefault()
     if (!name.trim() || !event.trim()) { setError('Fill in both fields.'); return }
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { error: err } = await supabase.from('goals').insert({
-      site_id: siteId, name: name.trim(), event: event.trim().toLowerCase().replace(/\s+/g,'-'),
-    })
-    setSaving(false)
-    if (err) { setError(err.message); return }
-    onSaved()
+    try {
+      await createGoal({ siteId, name: name.trim(), value: event.trim().toLowerCase().replace(/\s+/g, '-') })
+      onSaved()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const cleanEvent = event.trim().toLowerCase().replace(/\s+/g,'-')
@@ -72,34 +75,20 @@ function GoalModal({ siteId, onClose, onSaved }) {
 
 // ─── Main screen ───────────────────────────────────────────────────────────
 export default function Goals({ siteId, range }) {
-  const [goals, setGoals]         = useState([])
-  const [data, setData]           = useState(null)
-  const [loading, setLoading]     = useState(true)
-  const [showModal, setShowModal]   = useState(false)
-  const [revenue, setRevenue]       = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const deleteGoal = useMutation(api.goals.remove)
 
-  async function load() {
-    if (!siteId) { setLoading(false); return }
-    const [{ data: goalsData }, { data: statsData }, { data: revData }] = await Promise.all([
-      supabase.from('goals').select('*').eq('site_id', siteId).order('created_at'),
-      supabase.rpc('get_goals_data',   { p_site_id: siteId, p_days: rangeToDays(range) }),
-      supabase.rpc('get_revenue_stats',{ p_site_id: siteId, p_days: rangeToDays(range) }),
-    ])
-    if (goalsData) setGoals(goalsData)
-    if (statsData) setData(statsData)
-    if (revData)   setRevenue(revData)
-    setLoading(false)
+  const days    = rangeToDays(range)
+  const goals   = useQuery(api.goals.list,          siteId ? { siteId } : 'skip') ?? []
+  const data    = useQuery(api.stats.getGoalsData,  siteId ? { siteId, days } : 'skip') ?? []
+  const revenue = useQuery(api.stats.getRevenueStats, siteId ? { siteId, days } : 'skip')
+  const loading = siteId ? goals === undefined : false
+
+  async function handleDelete(goalId) {
+    await deleteGoal({ goalId })
   }
 
-  useEffect(() => { load() }, [siteId, range])
-
-  async function handleDelete(id) {
-    await supabase.from('goals').delete().eq('id', id)
-    setGoals(prev => prev.filter(g => g.id !== id))
-    setData(prev => prev ? prev.filter(g => g.id !== id) : prev)
-  }
-
-  function afterSave() { setShowModal(false); setLoading(true); load() }
+  function afterSave() { setShowModal(false) }
 
   const statsMap = Object.fromEntries((data ?? []).map(d => [d.id, d]))
   const hasRevenue = revenue && Number(revenue.total) > 0
@@ -165,7 +154,7 @@ export default function Goals({ siteId, range }) {
             {goals.map(g => {
               const s = statsMap[g.id]
               return (
-                <div key={g.id} className="goals-row">
+                <div key={g._id} className="goals-row">
                   <span className="goals-col-main goals-goal-name">
                     <span className="goals-badge-dot" />
                     {g.name}
@@ -177,7 +166,7 @@ export default function Goals({ siteId, range }) {
                   <span className="goals-col goals-num">{Number(s?.unique_completions ?? 0).toLocaleString()}</span>
                   <span className="goals-col goals-pct">{s?.conversion_rate ? `${s.conversion_rate}%` : '—'}</span>
                   <span className="goals-col-action">
-                    <button className="goals-delete-btn" onClick={() => handleDelete(g.id)} title="Delete goal">
+                    <button className="goals-delete-btn" onClick={() => handleDelete(g._id)} title="Delete goal">
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                         <path d="M2 4h10M5 4V2.5h4V4M5.5 10V6M8.5 10V6M3 4l.7 8h6.6L11 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>

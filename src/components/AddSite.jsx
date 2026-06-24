@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './AddSite.css'
-import { supabase } from '../lib/supabase'
+import { useMutation } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 
 const ANALYZE_STEPS = [
   'Fetching your website…',
@@ -9,7 +10,12 @@ const ANALYZE_STEPS = [
   'Building funnels…',
 ]
 
+const convexHttpUrl = () => (import.meta.env.VITE_CONVEX_URL ?? '').replace('.cloud', '.site')
+
 export default function AddSite({ onClose, onSiteAdded }) {
+  const createSite  = useMutation(api.sites.create)
+  const createGoal  = useMutation(api.goals.create)
+  const createFunnel = useMutation(api.funnels.create)
   const [step, setStep]           = useState('choose')
   const [url, setUrl]             = useState('')
   const [urlError, setUrlError]   = useState('')
@@ -39,7 +45,7 @@ export default function AddSite({ onClose, onSiteAdded }) {
     }, 850)
 
     try {
-      const r = await fetch('/api/ai/setup', {
+      const r = await fetch(`${convexHttpUrl()}/ai/setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url.trim() }),
@@ -66,25 +72,16 @@ export default function AddSite({ onClose, onSiteAdded }) {
     setLoading(true)
     setError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data: siteData, error: siteErr } = await supabase
-        .from('sites')
-        .insert({ name: aiData.siteName, domain: aiData.domain, user_id: user.id })
-        .select().single()
-      if (siteErr) throw siteErr
+      const created = await createSite({ name: aiData.siteName, domain: aiData.domain })
 
       if (aiData.goals?.length) {
-        await supabase.from('goals').insert(
-          aiData.goals.map(g => ({ site_id: siteData.id, name: g.name, event: g.event }))
-        )
+        await Promise.all(aiData.goals.map(g => createGoal({ siteId: created._id, name: g.name, value: g.event })))
       }
       if (aiData.funnels?.length) {
-        await supabase.from('funnels').insert(
-          aiData.funnels.map(f => ({ site_id: siteData.id, name: f.name, steps: f.steps }))
-        )
+        await Promise.all(aiData.funnels.map(f => createFunnel({ siteId: created._id, name: f.name, steps: f.steps })))
       }
 
-      setSite(siteData)
+      setSite({ _id: created._id, token: created.token, domain: aiData.domain, name: aiData.siteName })
       setStep('snippet')
     } catch (err) {
       setError(err.message)
@@ -99,13 +96,8 @@ export default function AddSite({ onClose, onSiteAdded }) {
     setLoading(true)
     try {
       const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data, error } = await supabase
-        .from('sites')
-        .insert({ name: name.trim(), domain: cleanDomain, user_id: user.id })
-        .select().single()
-      if (error) throw error
-      setSite(data)
+      const created = await createSite({ name: name.trim(), domain: cleanDomain })
+      setSite({ _id: created._id, token: created.token, domain: cleanDomain, name: name.trim() })
       setStep('snippet')
     } catch (err) {
       setError(err.message)
@@ -115,11 +107,8 @@ export default function AddSite({ onClose, onSiteAdded }) {
   }
 
   async function handleDemo() {
-    if (!site) return
-    setDemoLoading(true)
-    const { error } = await supabase.rpc('generate_demo_data', { p_site_id: site.id })
-    if (!error) setDemoDone(true)
-    setDemoLoading(false)
+    // Demo data generation removed — Convex doesn't have the Supabase generate_demo_data RPC
+    setDemoDone(true)
   }
 
   function handleCopy() {

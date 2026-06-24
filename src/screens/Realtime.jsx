@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './Realtime.css'
-import { supabase } from '../lib/supabase'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 import { activePages as SEED_PAGES, liveEvents as SEED_EVENTS, realtimeBars as SEED_BARS } from '../data/seed'
 
 const DEMO_RT = {
@@ -47,33 +48,35 @@ function classifyReferrer(ref) {
 }
 
 export default function Realtime({ siteId, onOnlineCount }) {
-  const [rt, setRt] = useState(null)
   const tickRef = useRef(0)
+  const [, forceUpdate] = useState(0)
+
+  // Convex useQuery is reactive — auto-polls via Convex's WebSocket
+  const rtQuery = useQuery(api.stats.getRealtime, siteId ? { siteId } : 'skip')
+
+  const rt = siteId ? (rtQuery ? {
+    onlineNow: rtQuery.online,
+    histogram: [],
+    activePages: [],
+    liveEvents: rtQuery.sessions.map(s => ({
+      country: s.country,
+      pathname: s.entryUrl ?? '/',
+      referrer: s.referrer ?? '',
+      ts: Math.floor((s.lastSeenAt ?? s.startedAt) / 1000),
+    })),
+  } : null) : DEMO_RT
 
   useEffect(() => {
-    if (!siteId) {
-      setRt(DEMO_RT)
-      onOnlineCount?.(DEMO_RT.onlineNow)
-      return
-    }
-    let active = true
-
-    function poll() {
-      supabase.rpc('get_realtime', { p_site_id: siteId }).then(({ data }) => {
-        if (!active || !data) return
-        setRt(data)
-        onOnlineCount?.(Number(data.onlineNow ?? 0))
-      })
-    }
-
-    poll()
-    const id = setInterval(poll, 5_000)
-    return () => { active = false; clearInterval(id) }
+    if (!siteId) onOnlineCount?.(DEMO_RT.onlineNow)
   }, [siteId])
+
+  useEffect(() => {
+    if (rt) onOnlineCount?.(Number(rt.onlineNow ?? 0))
+  }, [rt])
 
   // Force re-render every second to keep "X ago" fresh
   useEffect(() => {
-    const id = setInterval(() => { tickRef.current++; setRt(r => r ? { ...r } : r) }, 1000)
+    const id = setInterval(() => { tickRef.current++; forceUpdate(n => n + 1) }, 1000)
     return () => clearInterval(id)
   }, [])
 

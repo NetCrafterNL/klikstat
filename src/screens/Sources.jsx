@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './Sources.css'
-import { supabase } from '../lib/supabase'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 import { downloadCSV } from '../lib/csv'
 import { channels as SEED_CH } from '../data/seed'
 
@@ -62,23 +63,26 @@ const CHANNELS = ['All', 'Search', 'Social', 'Direct', 'Referral', 'Campaigns']
 
 function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
-export default function Sources({ siteId, range }) {
-  const [rows, setRows]             = useState(null)
-  const [campaigns, setCampaigns]   = useState(null)
-  const [loading, setLoading]       = useState(true)
-  const [activeChannel, setActive]  = useState('All')
+function classifyChannel(ref) {
+  if (!ref || ref === 'Direct') return 'Direct'
+  try {
+    const host = new URL(ref.startsWith('http') ? ref : `https://${ref}`).hostname.replace(/^www\./, '')
+    if (/google|bing|duckduckgo|yahoo|baidu|yandex/.test(host)) return 'Search'
+    if (/facebook|twitter|instagram|linkedin|tiktok|reddit|pinterest|youtube/.test(host)) return 'Social'
+    return 'Referral'
+  } catch { return 'Referral' }
+}
 
-  useEffect(() => {
-    if (!siteId) { setRows(DEMO_DATA); setLoading(false); return }
-    setLoading(true)
-    supabase.rpc('get_campaigns', { p_site_id: siteId, p_days: rangeToDays(range) })
-      .then(({ data }) => { if (data) setCampaigns(data) })
-    supabase.rpc('get_sources', { p_site_id: siteId, p_days: rangeToDays(range) })
-      .then(({ data, error }) => {
-        if (!error && data) setRows(data)
-        setLoading(false)
-      })
-  }, [siteId, range])
+export default function Sources({ siteId, range }) {
+  const [activeChannel, setActive] = useState('All')
+
+  const days      = rangeToDays(range)
+  const sourcesQ  = useQuery(api.stats.getSources,  siteId ? { siteId, days } : 'skip')
+  const campaignQ = useQuery(api.stats.getCampaigns, siteId ? { siteId, days } : 'skip')
+
+  const rows      = siteId ? (sourcesQ ?? []).map(r => ({ source: r.referrer, channel: classifyChannel(r.referrer), visitors: r.count })) : DEMO_DATA
+  const campaigns = siteId ? (campaignQ ?? null) : null
+  const loading   = siteId ? sourcesQ === undefined : false
 
   const filtered = (rows ?? []).filter(r => activeChannel === 'All' || r.channel === activeChannel)
   const maxVisitors = filtered[0]?.visitors ?? 1

@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './Profile.css'
-import { supabase } from '../lib/supabase'
+import { useQuery, useMutation } from 'convex/react'
+import { useUser } from '@clerk/react'
+import { api } from '../../convex/_generated/api'
 
 const SUBNAV = [
   { id: 'profile',  label: 'Profile',  icon: <path d="M9 9a3 3 0 100-6 3 3 0 000 6zM3 17c0-3.31 2.69-6 6-6s6 2.69 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/> },
@@ -17,40 +19,41 @@ function randomKey() {
 }
 
 function initials(user) {
-  const name = user?.user_metadata?.name ?? user?.email ?? ''
+  const name = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? ''
   return name.split(/\s+/).map(w => w[0] ?? '').join('').slice(0,2).toUpperCase() || '?'
 }
 
-function joinedDate(user) {
-  if (!user?.created_at) return ''
-  return new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+function joinedDate(clerkUser) {
+  if (!user?.createdAt) return ''
+  return new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
-export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark, sites }) {
-  const [activeNav, setActiveNav]   = useState('profile')
-  const [twoFA, setTwoFA]           = useState(false)
-  const [name, setName]             = useState(user?.user_metadata?.name ?? '')
-  const [role, setRole]             = useState(user?.user_metadata?.role ?? 'Founder')
-  const [timezone, setTimezone]     = useState(user?.user_metadata?.timezone ?? 'eastern')
-  const [saving, setSaving]         = useState(false)
-  const [saved, setSaved]           = useState(false)
-  const [showPwForm, setShowPwForm] = useState(false)
-  const [apiKeys, setApiKeys]       = useState([])
+export default function Profile({ user: clerkUser, onLogout, isDemo, darkMode, onToggleDark, sites }) {
+  const { user } = useUser()
+  const [activeNav, setActiveNav]     = useState('profile')
+  const [name, setName]               = useState(clerkUser?.fullName ?? '')
+  const [saving, setSaving]           = useState(false)
+  const [saved, setSaved]             = useState(false)
   const [newKeyLabel, setNewKeyLabel] = useState('')
   const [newKeyPlain, setNewKeyPlain] = useState(null)
-  const [emailSubs, setEmailSubs]   = useState([])
-  const [emailForm, setEmailForm]   = useState({ email: user?.email ?? '', frequency: 'weekly', siteId: '' })
-  const [emailSaved, setEmailSaved] = useState(false)
+  const [emailForm, setEmailForm]     = useState({ email: clerkUser?.primaryEmailAddress?.emailAddress ?? '', frequency: 'weekly', siteId: '' })
+  const [emailSaved, setEmailSaved]   = useState(false)
+  const [newPw, setNewPw]             = useState('')
+  const [confirmPw, setConfirmPw]     = useState('')
+  const [pwError, setPwError]         = useState('')
+  const [pwSaved, setPwSaved]         = useState(false)
+  const [showPwForm, setShowPwForm]   = useState(false)
 
-  useEffect(() => {
-    if (isDemo || activeNav !== 'api') return
-    supabase.from('api_keys').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data) setApiKeys(data) })
-  }, [activeNav, isDemo])
+  const createKey   = useMutation(api.apiKeys.create)
+  const deleteKey   = useMutation(api.apiKeys.remove)
+  const createEmail = useMutation(api.subscriptions.createEmail)
+  const toggleEmail = useMutation(api.subscriptions.toggleEmail)
 
-  useEffect(() => {
-    if (isDemo || activeNav !== 'reports') return
-    supabase.from('email_subscriptions').select('*').then(({ data }) => { if (data) setEmailSubs(data) })
-  }, [activeNav, isDemo])
+  const apiKeys  = useQuery(activeNav === 'api' && !isDemo ? api.apiKeys.list : 'skip') ?? []
+  const emailSubs = useQuery(
+    activeNav === 'reports' && !isDemo && emailForm.siteId ? api.subscriptions.listEmail : 'skip',
+    emailForm.siteId ? { siteId: emailForm.siteId } : undefined
+  ) ?? []
 
   async function handleCreateKey(e) {
     e.preventDefault()
@@ -58,53 +61,40 @@ export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark
     const plain = randomKey()
     const hash  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(plain))
     const keyHash = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('')
-    const { data } = await supabase.from('api_keys').insert({ label: newKeyLabel.trim(), key_hash: keyHash, user_id: user.id }).select().single()
-    if (data) { setApiKeys(prev => [data, ...prev]); setNewKeyPlain(plain); setNewKeyLabel('') }
+    await createKey({ name: newKeyLabel.trim(), keyHash })
+    setNewKeyPlain(plain)
+    setNewKeyLabel('')
   }
 
-  async function handleDeleteKey(id) {
-    await supabase.from('api_keys').delete().eq('id', id)
-    setApiKeys(prev => prev.filter(k => k.id !== id))
+  async function handleDeleteKey(keyId) {
+    await deleteKey({ keyId })
   }
 
   async function handleSaveEmailSub(e) {
     e.preventDefault()
     const { email, frequency, siteId } = emailForm
     if (!email || !siteId) return
-    const { data } = await supabase.from('email_subscriptions')
-      .upsert({ site_id: siteId, user_id: user.id, email, frequency, enabled: true }, { onConflict: 'site_id,user_id' })
-      .select().single()
-    if (data) {
-      setEmailSubs(prev => { const f = prev.filter(s => s.site_id !== siteId); return [data, ...f] })
-      setEmailSaved(true); setTimeout(() => setEmailSaved(false), 2000)
-    }
+    await createEmail({ siteId, email, frequency })
+    setEmailSaved(true)
+    setTimeout(() => setEmailSaved(false), 2000)
   }
 
   async function handleToggleEmailSub(sub) {
-    const { data } = await supabase.from('email_subscriptions').update({ enabled: !sub.enabled }).eq('id', sub.id).select().single()
-    if (data) setEmailSubs(prev => prev.map(s => s.id === sub.id ? data : s))
+    await toggleEmail({ subId: sub._id })
   }
-  const [newPw, setNewPw]           = useState('')
-  const [confirmPw, setConfirmPw]   = useState('')
-  const [pwError, setPwError]       = useState('')
-  const [pwSaved, setPwSaved]       = useState(false)
-
-  const originalName = user?.user_metadata?.name ?? ''
 
   async function handleSave(e) {
     e.preventDefault()
-    if (isDemo) return
+    if (isDemo || !user) return
     setSaving(true)
-    await supabase.auth.updateUser({ data: { name, role, timezone } })
+    await user.update({ firstName: name.split(' ')[0], lastName: name.split(' ').slice(1).join(' ') })
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
   function handleCancel() {
-    setName(originalName)
-    setRole(user?.user_metadata?.role ?? 'Founder')
-    setTimezone(user?.user_metadata?.timezone ?? 'eastern')
+    setName(clerkUser?.fullName ?? '')
   }
 
   async function handlePasswordUpdate(e) {
@@ -112,12 +102,17 @@ export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark
     setPwError('')
     if (newPw.length < 8) { setPwError('Password must be at least 8 characters.'); return }
     if (newPw !== confirmPw) { setPwError('Passwords do not match.'); return }
-    const { error } = await supabase.auth.updateUser({ password: newPw })
-    if (error) { setPwError(error.message); return }
-    setPwSaved(true)
-    setNewPw(''); setConfirmPw('')
-    setTimeout(() => { setPwSaved(false); setShowPwForm(false) }, 2000)
+    try {
+      await user?.updatePassword({ newPassword: newPw })
+      setPwSaved(true)
+      setNewPw(''); setConfirmPw('')
+      setTimeout(() => { setPwSaved(false); setShowPwForm(false) }, 2000)
+    } catch (err) {
+      setPwError(err.message)
+    }
   }
+
+  const twoFA = false
 
   return (
     <>
@@ -138,13 +133,13 @@ export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark
           {activeNav === 'profile' && (<>
             <div className="profile-card">
               <div className="profile-header-inner">
-                <div className="profile-avatar">{initials(user)}</div>
+                <div className="profile-avatar">{initials(clerkUser)}</div>
                 <div className="profile-meta">
                   <div className="profile-name-row">
-                    <span className="profile-name">{name || user?.email}</span>
+                    <span className="profile-name">{name || clerkUser?.primaryEmailAddress?.emailAddress}</span>
                     <span className="role-pill">Owner</span>
                   </div>
-                  <div className="profile-info-line">{user?.email} · Joined {joinedDate(user)}</div>
+                  <div className="profile-info-line">{clerkUser?.primaryEmailAddress?.emailAddress} · Joined {joinedDate(clerkUser)}</div>
                 </div>
                 <button className="btn-outline">Change photo</button>
               </div>
@@ -160,7 +155,7 @@ export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark
                   </div>
                   <div className="field-group">
                     <label className="field-label">Email address</label>
-                    <input className="field-input" type="email" defaultValue={user?.email} disabled style={{ opacity:.6 }} />
+                    <input className="field-input" type="email" defaultValue={clerkUser?.primaryEmailAddress?.emailAddress} disabled style={{ opacity:.6 }} />
                   </div>
                   <div className="field-group">
                     <label className="field-label">Role</label>
@@ -282,16 +277,16 @@ export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark
               {apiKeys.length === 0
                 ? <div style={{ color:'var(--c-text-muted3)', fontSize:13, fontWeight:600 }}>No API keys yet.</div>
                 : apiKeys.map(k => (
-                    <div key={k.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', borderBottom:'1px solid var(--c-border)' }}>
+                    <div key={k._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', borderBottom:'1px solid var(--c-border)' }}>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontSize:14, fontWeight:700, color:'var(--c-text-body)' }}>{k.label}</div>
+                        <div style={{ fontSize:14, fontWeight:700, color:'var(--c-text-body)' }}>{k.name}</div>
                         <div style={{ fontSize:12, color:'var(--c-text-muted3)', marginTop:2 }}>
-                          Created {new Date(k.created_at).toLocaleDateString()}
+                          Created {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : 'never used'}
                           {k.last_used ? ` · Last used ${new Date(k.last_used).toLocaleDateString()}` : ' · Never used'}
                         </div>
                       </div>
                       <code style={{ fontSize:12, color:'var(--c-text-muted3)', background:'var(--c-bg)', padding:'3px 8px', borderRadius:6 }}>ks_live_••••••••</code>
-                      <button className="btn-danger" onClick={() => handleDeleteKey(k.id)}>Delete</button>
+                      <button className="btn-danger" onClick={() => handleDeleteKey(k._id)}>Delete</button>
                     </div>
                   ))
               }
@@ -317,7 +312,7 @@ export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark
                     <label className="field-label">Site</label>
                     <select className="field-input field-select" value={emailForm.siteId} onChange={e => setEmailForm(f => ({ ...f, siteId: e.target.value }))}>
                       <option value="">— select a site —</option>
-                      {(sites ?? []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {(sites ?? []).map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
                     </select>
                   </div>
                   <div className="field-group">
@@ -338,12 +333,12 @@ export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark
                 <>
                   <div style={{ fontSize:12, fontWeight:700, color:'var(--c-text-muted3)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:10 }}>Active subscriptions</div>
                   {emailSubs.map(s => (
-                    <div key={s.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--c-border)' }}>
+                    <div key={s._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--c-border)' }}>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:13.5, fontWeight:700, color:'var(--c-text-body)' }}>{s.email}</div>
                         <div style={{ fontSize:12, color:'var(--c-text-muted3)' }}>{s.frequency} · {s.last_sent ? `Last sent ${new Date(s.last_sent).toLocaleDateString()}` : 'Never sent'}</div>
                       </div>
-                      <div className={`toggle${s.enabled ? ' on' : ''}`} onClick={() => handleToggleEmailSub(s)}>
+                      <div className={`toggle${s.enabled !== false ? ' on' : ''}`} onClick={() => handleToggleEmailSub(s)}>
                         <div className="toggle-knob"/>
                       </div>
                     </div>
@@ -363,11 +358,11 @@ export default function Profile({ user, onLogout, isDemo, darkMode, onToggleDark
               <div className="card-section-title">Team members</div>
               <div style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 0' }}>
                 <div style={{ width:40, height:40, borderRadius:'50%', background:'linear-gradient(135deg,#FFB37B,#FF7BA8)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, color:'white', flexShrink:0 }}>
-                  {initials(user)}
+                  {initials(clerkUser)}
                 </div>
                 <div>
-                  <div style={{ fontSize:14, fontWeight:700, color:'var(--c-text-primary)' }}>{name || user?.email}</div>
-                  <div style={{ fontSize:12.5, color:'var(--c-text-muted2)' }}>{user?.email}</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:'var(--c-text-primary)' }}>{name || clerkUser?.primaryEmailAddress?.emailAddress}</div>
+                  <div style={{ fontSize:12.5, color:'var(--c-text-muted2)' }}>{clerkUser?.primaryEmailAddress?.emailAddress}</div>
                 </div>
                 <span style={{ marginLeft:'auto', background:'var(--c-violet-tint)', color:'var(--c-primary)', fontSize:12, fontWeight:700, padding:'2px 9px', borderRadius:999 }}>Owner</span>
               </div>

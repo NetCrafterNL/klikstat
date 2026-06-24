@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './Pages.css'
-import { supabase } from '../lib/supabase'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 import { downloadCSV } from '../lib/csv'
 import { topPages as SEED_PAGES } from '../data/seed'
 
@@ -30,29 +31,16 @@ function formatDuration(s) {
 function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
 export default function Pages({ siteId, range }) {
-  const [rows, setRows]           = useState(null)
-  const [entryExit, setEntryExit] = useState(null)
-  const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
   const [activeTab, setActiveTab] = useState('top')
 
-  useEffect(() => {
-    if (!siteId) {
-      setRows(DEMO_TOP)
-      setEntryExit({ entry: DEMO_ENTRY, exit: DEMO_EXIT })
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    Promise.all([
-      supabase.rpc('get_pages',            { p_site_id: siteId, p_days: rangeToDays(range) }),
-      supabase.rpc('get_entry_exit_pages', { p_site_id: siteId, p_days: rangeToDays(range) }),
-    ]).then(([{ data, error }, { data: eeData }]) => {
-      if (!error && data) setRows(data)
-      if (eeData) setEntryExit(eeData)
-      setLoading(false)
-    })
-  }, [siteId, range])
+  const days     = rangeToDays(range)
+  const pagesQ   = useQuery(api.stats.getPages,         siteId ? { siteId, days } : 'skip')
+  const entryExQ = useQuery(api.stats.getEntryExitPages, siteId ? { siteId, days } : 'skip')
+
+  const rows      = siteId ? (pagesQ ?? []) : DEMO_TOP
+  const entryExit = siteId ? (entryExQ ?? null) : { entries: DEMO_ENTRY }
+  const loading   = siteId ? pagesQ === undefined : false
 
   const currentRows = activeTab === 'top'
     ? (rows ?? [])

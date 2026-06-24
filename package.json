@@ -4,20 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "concurrently \"npx convex dev\" \"vite\"",
     "dev:vite": "vite",
+    "convex:dev": "npx convex dev",
+    "convex:deploy": "npx convex deploy",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "db:push": "supabase db push",
-    "db:reset": "supabase db reset",
-    "db:diff": "supabase db diff"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.108.2",
-    "express": "^5.2.1",
-    "geoip-lite": "^2.0.3",
-    "node-cron": "^4.5.0",
+    "@clerk/react": "^6.11.0",
+    "convex": "^1.42.0",
+    "nanoid": "^5.1.15",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "ua-parser-js": "^2.0.10"
@@ -27,6 +24,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^10.0.3",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",

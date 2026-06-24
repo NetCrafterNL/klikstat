@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
+import { useEffect } from 'react'
 import './App.css'
-import { supabase } from './lib/supabase'
+import { useUser, useClerk, SignedIn, SignedOut } from '@clerk/react'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../convex/_generated/api'
 import TopBar from './components/TopBar'
 import AddSite from './components/AddSite'
 import Dashboard from './screens/Dashboard'
@@ -15,15 +18,14 @@ import Overview from './screens/Overview'
 import Retention from './screens/Retention'
 import Login from './screens/Login'
 
-const DEMO_USER = { email: 'demo@klikstat.com', user_metadata: { name: 'Jordan Diaz' } }
-const DEMO_SITE = { id: null, name: 'Klikstat App', domain: 'app.klikstat.com' }
+const DEMO_SITE = { _id: null, name: 'Klikstat App', domain: 'app.klikstat.com' }
 
-// Public share page — rendered outside the normal auth shell
 function SharePage({ token }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   useEffect(() => {
-    fetch(`/api/public/${token}?days=30`)
+    const convexUrl = import.meta.env.VITE_CONVEX_URL?.replace('.cloud', '.site') ?? ''
+    fetch(`${convexUrl}/public/${token}?days=30`)
       .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) }))
       .then(setData)
       .catch(e => setError(e.message))
@@ -55,15 +57,19 @@ function SharePage({ token }) {
         <Dashboard siteId={null} siteName={data.site.name} userName="" range="30d" preloadedStats={data.stats} />
       </div>
       <div style={{ textAlign:'center', padding:'20px 0 32px', fontSize:12.5, color:'var(--c-text-muted3)', fontWeight:600 }}>
-        Powered by <a href="https://klikstat.vercel.app" style={{ color:'var(--c-primary)', textDecoration:'none' }}>Klikstat</a>
+        Powered by <a href="https://klikstat.nl" style={{ color:'var(--c-primary)', textDecoration:'none' }}>Klikstat</a>
       </div>
     </div>
   )
 }
 
-export default function App() {
-  const [session, setSession]               = useState(undefined)
-  const [sites, setSites]                   = useState([])
+function AuthenticatedApp() {
+  const { user } = useUser()
+  const { signOut } = useClerk()
+  const sites = useQuery(api.sites.list) ?? []
+  const updateSite = useMutation(api.sites.update)
+  const removeSite = useMutation(api.sites.remove)
+
   const [currentSiteIdx, setCurrentSiteIdx] = useState(0)
   const [screen, setScreen]                 = useState('dashboard')
   const [range, setRange]                   = useState('30d')
@@ -77,81 +83,42 @@ export default function App() {
     localStorage.setItem('ks-dark', darkMode ? '1' : '0')
   }, [darkMode])
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session ?? null))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s ?? null))
-    return () => subscription.unsubscribe()
-  }, [])
-
-  // After sign-in, drop back to dashboard
-  useEffect(() => {
-    if (session) setScreen('dashboard')
-  }, [session])
-
-  useEffect(() => {
-    if (!session) { setSites([]); return }
-    supabase.from('sites').select('*').order('created_at')
-      .then(({ data }) => { if (data) setSites(data) })
-  }, [session])
-
-  const handleSiteAdded = useCallback((newSite) => {
-    setSites(prev => { const u = [...prev, newSite]; setCurrentSiteIdx(u.length - 1); return u })
+  const handleSiteAdded = useCallback((newSiteId) => {
     setShowAddSite(false)
     setScreen('dashboard')
   }, [])
 
   const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut()
-    setSites([])
-    setCurrentSiteIdx(0)
-  }, [])
+    await signOut()
+  }, [signOut])
 
   const handleTogglePublic = useCallback(async (site) => {
-    const newPublic = !site.is_public
-    const { data } = await supabase
-      .from('sites').update({ is_public: newPublic }).eq('id', site.id).select().single()
-    if (data) {
-      setSites(prev => prev.map(s => s.id === site.id ? data : s))
-      if (newPublic) {
-        const url = `${window.location.origin}?share=${data.public_token}`
-        await navigator.clipboard.writeText(url).catch(() => {})
-        alert(`Public dashboard enabled!\n\nShare link copied to clipboard:\n${url}`)
-      }
+    const newPublic = !site.isPublic
+    const updated = await updateSite({ siteId: site._id, isPublic: newPublic })
+    if (newPublic && updated?.publicToken) {
+      const url = `${window.location.origin}?share=${updated.publicToken}`
+      await navigator.clipboard.writeText(url).catch(() => {})
+      alert(`Public dashboard enabled!\n\nShare link copied to clipboard:\n${url}`)
     }
-  }, [])
+  }, [updateSite])
 
   const handleDeleteSite = useCallback(async (site) => {
     if (!window.confirm(`Delete "${site.name}"?\n\nThis will permanently remove the site and all its analytics data. This cannot be undone.`)) return
-    const { error } = await supabase.from('sites').delete().eq('id', site.id)
-    if (!error) {
-      setSites(prev => {
-        const next = prev.filter(s => s.id !== site.id)
-        setCurrentSiteIdx(i => Math.min(i, Math.max(0, next.length - 1)))
-        return next
-      })
-      setScreen('dashboard')
-    }
-  }, [])
+    await removeSite({ siteId: site._id })
+    setCurrentSiteIdx(i => Math.max(0, i - 1))
+    setScreen('dashboard')
+  }, [removeSite])
 
-  if (session === undefined) return null
-
-  // Public share page — no auth needed
-  const shareToken = new URLSearchParams(window.location.search).get('share')
-  if (shareToken) return <SharePage token={shareToken} />
-
-  if (screen === 'login' && !session) return <Login />
-
-  const user           = session?.user ?? DEMO_USER
-  const effectiveSites = session ? sites : [DEMO_SITE]
-  const currentSite    = effectiveSites[currentSiteIdx] ?? null
-  const siteId         = currentSite?.id ?? null
-  const siteName       = currentSite?.name ?? 'Demo'
+  const currentSite = sites[currentSiteIdx] ?? null
+  const siteId      = currentSite?._id ?? null
+  const siteName    = currentSite?.name ?? 'My Site'
+  const userName    = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? ''
 
   return (
-    <div className="app-shell" onClick={() => setSwitcherOpen(false)} onClickCapture={() => {}}>
+    <div className="app-shell" onClick={() => setSwitcherOpen(false)}>
       <TopBar
         user={user}
-        sites={effectiveSites}
+        sites={sites}
         currentSiteIdx={currentSiteIdx}
         switcherOpen={switcherOpen}
         onToggleSwitcher={e => { e.stopPropagation(); setSwitcherOpen(v => !v) }}
@@ -161,7 +128,7 @@ export default function App() {
         onNavigate={setScreen}
         realtimeCount={realtimeCount}
         onLogout={handleLogout}
-        isDemo={!session}
+        isDemo={false}
         range={range}
         onRangeChange={setRange}
         onTogglePublic={handleTogglePublic}
@@ -170,42 +137,92 @@ export default function App() {
 
       <main className="app-content">
         {screen === 'dashboard' && (
-          <Dashboard siteId={siteId} siteName={siteName} userName={user.user_metadata?.name ?? user.email} range={range} />
+          <Dashboard siteId={siteId} siteName={siteName} userName={userName} range={range} />
         )}
         {screen === 'realtime' && (
           <Realtime siteId={siteId} onOnlineCount={setRealtimeCount} />
         )}
-        {screen === 'overview'   && <Overview   range={range} onNavigateToSite={id => { const idx = sites.findIndex(s => s.id === id); if (idx >= 0) { setCurrentSiteIdx(idx); setScreen('dashboard') } }} />}
+        {screen === 'overview'   && <Overview   range={range} onNavigateToSite={id => { const idx = sites.findIndex(s => s._id === id); if (idx >= 0) { setCurrentSiteIdx(idx); setScreen('dashboard') } }} />}
         {screen === 'pages'      && <Pages      siteId={siteId} range={range} />}
         {screen === 'sources'    && <Sources    siteId={siteId} range={range} />}
         {screen === 'technology' && <Technology siteId={siteId} range={range} />}
         {screen === 'goals'      && <Goals      siteId={siteId} range={range} />}
         {screen === 'funnels'    && <Funnels    siteId={siteId} range={range} />}
         {screen === 'retention'  && <Retention  siteId={siteId} range={range} />}
-        {screen === 'profile' && (
-          <Profile user={user} onLogout={handleLogout} isDemo={!session}
-            darkMode={darkMode} onToggleDark={() => setDarkMode(v => !v)}
-            sites={effectiveSites}
+        {screen === 'profile'    && (
+          <Profile
+            user={user}
+            onLogout={handleLogout}
+            isDemo={false}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode(v => !v)}
+            sites={sites}
           />
         )}
       </main>
 
-      {showAddSite && session && (
+      {showAddSite && (
         <AddSite onClose={() => setShowAddSite(false)} onSiteAdded={handleSiteAdded} />
       )}
-      {showAddSite && !session && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center' }}
-          onClick={() => setShowAddSite(false)}>
-          <div style={{ background:'white', borderRadius:20, padding:32, maxWidth:400, textAlign:'center' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize:17, fontWeight:800, marginBottom:10 }}>Sign in to add a website</div>
-            <div style={{ fontSize:14, color:'var(--c-text-muted)', marginBottom:20 }}>Create a free account to start tracking your sites.</div>
-            <button style={{ padding:'11px 28px', background:'var(--c-primary)', color:'white', borderRadius:10, fontWeight:700, fontSize:14, border:'none', cursor:'pointer', boxShadow:'var(--shadow-btn)' }}
-              onClick={() => { setShowAddSite(false); setScreen('login') }}>
-              Get started
-            </button>
-          </div>
-        </div>
-      )}
     </div>
+  )
+}
+
+function DemoApp() {
+  const [screen, setScreen]     = useState('dashboard')
+  const [range, setRange]       = useState('30d')
+  const [switcherOpen, setSwitcherOpen] = useState(false)
+  const [showLogin, setShowLogin]       = useState(false)
+  const [darkMode, setDarkMode]         = useState(() => localStorage.getItem('ks-dark') === '1')
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', darkMode)
+    localStorage.setItem('ks-dark', darkMode ? '1' : '0')
+  }, [darkMode])
+
+  if (showLogin) return <Login onBack={() => setShowLogin(false)} />
+
+  return (
+    <div className="app-shell" onClick={() => setSwitcherOpen(false)}>
+      <TopBar
+        user={{ firstName: 'Demo', primaryEmailAddress: { emailAddress: 'demo@klikstat.com' } }}
+        sites={[DEMO_SITE]}
+        currentSiteIdx={0}
+        switcherOpen={switcherOpen}
+        onToggleSwitcher={e => { e.stopPropagation(); setSwitcherOpen(v => !v) }}
+        onSelectSite={() => {}}
+        onAddSite={() => setShowLogin(true)}
+        activeScreen={screen}
+        onNavigate={setScreen}
+        realtimeCount={0}
+        onLogout={() => setShowLogin(true)}
+        isDemo={true}
+        range={range}
+        onRangeChange={setRange}
+        onTogglePublic={() => setShowLogin(true)}
+        onDeleteSite={() => setShowLogin(true)}
+      />
+      <main className="app-content">
+        {screen === 'dashboard' && (
+          <Dashboard siteId={null} siteName="Klikstat App" userName="Demo" range={range} />
+        )}
+      </main>
+    </div>
+  )
+}
+
+export default function App() {
+  const shareToken = new URLSearchParams(window.location.search).get('share')
+  if (shareToken) return <SharePage token={shareToken} />
+
+  return (
+    <>
+      <SignedIn>
+        <AuthenticatedApp />
+      </SignedIn>
+      <SignedOut>
+        <DemoApp />
+      </SignedOut>
+    </>
   )
 }
