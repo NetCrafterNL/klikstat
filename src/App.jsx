@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useEffect } from 'react'
 import './App.css'
-import { useUser, useClerk, SignedIn, SignedOut } from '@clerk/react'
+import { useUser, useClerk } from '@clerk/react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../convex/_generated/api'
 import TopBar from './components/TopBar'
@@ -215,14 +215,7 @@ export default function App() {
   const shareToken = new URLSearchParams(window.location.search).get('share')
   if (shareToken) return <SharePage token={shareToken} />
 
-  return (
-    <>
-      <SignedIn>
-        <AuthenticatedApp />
-      </SignedIn>
-      <SignedOut>
-        <DemoApp />
-      </SignedOut>
-    </>
-  )
+  const { isSignedIn, isLoaded } = useUser()
+  if (!isLoaded) return null
+  return isSignedIn ? <AuthenticatedApp /> : <DemoApp />
 }
