@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 FROM node:22-alpine AS build
-RUN npm install -g pnpm@11.8.0
+RUN npm install -g pnpm@11.1.3
 WORKDIR /app
 COPY pnpm-lock.yaml package.json ./
 RUN pnpm install --no-frozen-lockfile
