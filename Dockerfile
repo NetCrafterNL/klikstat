@@ -1,11 +1,10 @@
 # syntax=docker/dockerfile:1
 FROM node:22-alpine AS build
-RUN npm install -g pnpm@11.1.3
 WORKDIR /app
-COPY pnpm-lock.yaml package.json ./
-RUN pnpm install --no-frozen-lockfile
+COPY package.json ./
+RUN npm install
 COPY . .
-RUN pnpm run build
+RUN npm run build
 
 FROM nginx:1.27-alpine AS runner
 COPY --from=build /app/dist /usr/share/nginx/html
