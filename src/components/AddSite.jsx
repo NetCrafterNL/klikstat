@@ -1,7 +1,5 @@
 import { useState } from 'react'
 import './AddSite.css'
-import { useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 
 const ANALYZE_STEPS = [
   'Fetching your website…',
@@ -10,12 +8,7 @@ const ANALYZE_STEPS = [
   'Building funnels…',
 ]
 
-const convexHttpUrl = () => (import.meta.env.VITE_CONVEX_URL ?? '').replace('.cloud', '.site')
-
-export default function AddSite({ onClose, onSiteAdded }) {
-  const createSite  = useMutation(api.sites.create)
-  const createGoal  = useMutation(api.goals.create)
-  const createFunnel = useMutation(api.funnels.create)
+export default function AddSite({ user, onClose, onSiteAdded }) {
   const [step, setStep]           = useState('choose')
   const [url, setUrl]             = useState('')
   const [urlError, setUrlError]   = useState('')
@@ -28,7 +21,6 @@ export default function AddSite({ onClose, onSiteAdded }) {
   const [site, setSite]           = useState(null)
   const [copied, setCopied]       = useState(false)
   const [demoDone, setDemoDone]   = useState(false)
-  const [demoLoading, setDemoLoading] = useState(false)
 
   async function handleAnalyze(e) {
     e.preventDefault()
@@ -45,7 +37,7 @@ export default function AddSite({ onClose, onSiteAdded }) {
     }, 850)
 
     try {
-      const r = await fetch(`${convexHttpUrl()}/ai/setup`, {
+      const r = await fetch('/ai/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url.trim() }),
@@ -69,19 +61,38 @@ export default function AddSite({ onClose, onSiteAdded }) {
   }
 
   async function handleAiCreate() {
+    if (!user?.id) return
     setLoading(true)
     setError('')
     try {
-      const created = await createSite({ name: aiData.siteName, domain: aiData.domain })
+      const res = await fetch('/api/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, name: aiData.siteName, domain: aiData.domain }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error)
+      const created = await res.json()
 
       if (aiData.goals?.length) {
-        await Promise.all(aiData.goals.map(g => createGoal({ siteId: created._id, name: g.name, value: g.event })))
+        await Promise.all(aiData.goals.map(g =>
+          fetch(`/api/goals/${created.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: g.name, value: g.event }),
+          })
+        ))
       }
       if (aiData.funnels?.length) {
-        await Promise.all(aiData.funnels.map(f => createFunnel({ siteId: created._id, name: f.name, steps: f.steps })))
+        await Promise.all(aiData.funnels.map(f =>
+          fetch(`/api/funnels/${created.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: f.name, steps: f.steps }),
+          })
+        ))
       }
 
-      setSite({ _id: created._id, token: created.token, domain: aiData.domain, name: aiData.siteName })
+      setSite(created)
       setStep('snippet')
     } catch (err) {
       setError(err.message)
@@ -94,21 +105,23 @@ export default function AddSite({ onClose, onSiteAdded }) {
     e.preventDefault()
     setError('')
     setLoading(true)
+    if (!user?.id) { setError('Not logged in.'); setLoading(false); return }
     try {
       const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
-      const created = await createSite({ name: name.trim(), domain: cleanDomain })
-      setSite({ _id: created._id, token: created.token, domain: cleanDomain, name: name.trim() })
+      const res = await fetch('/api/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, name: name.trim(), domain: cleanDomain }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error)
+      const created = await res.json()
+      setSite(created)
       setStep('snippet')
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
-
-  async function handleDemo() {
-    // Demo data generation removed — Convex doesn't have the Supabase generate_demo_data RPC
-    setDemoDone(true)
   }
 
   function handleCopy() {
@@ -138,7 +151,6 @@ export default function AddSite({ onClose, onSiteAdded }) {
           </button>
         </div>
 
-        {/* ── CHOOSE ── */}
         {step === 'choose' && (
           <div className="ai-choose">
             <button className="ai-choose-card ai-primary-card" onClick={() => setStep('url')}>
@@ -176,7 +188,6 @@ export default function AddSite({ onClose, onSiteAdded }) {
           </div>
         )}
 
-        {/* ── URL INPUT ── */}
         {step === 'url' && (
           <form onSubmit={handleAnalyze}>
             <div className="ai-url-hint">
@@ -198,7 +209,6 @@ export default function AddSite({ onClose, onSiteAdded }) {
           </form>
         )}
 
-        {/* ── ANALYZING ── */}
         {step === 'analyzing' && (
           <div className="ai-analyzing">
             {ANALYZE_STEPS.map((label, i) => (
@@ -220,7 +230,6 @@ export default function AddSite({ onClose, onSiteAdded }) {
           </div>
         )}
 
-        {/* ── REVIEW ── */}
         {step === 'review' && aiData && (
           <div className="ai-review">
             <div className="ai-review-site">
@@ -287,7 +296,6 @@ export default function AddSite({ onClose, onSiteAdded }) {
           </div>
         )}
 
-        {/* ── MANUAL FORM ── */}
         {step === 'form' && (
           <form onSubmit={handleManualCreate}>
             <div className="modal-field">
@@ -319,7 +327,6 @@ export default function AddSite({ onClose, onSiteAdded }) {
           </form>
         )}
 
-        {/* ── SNIPPET ── */}
         {step === 'snippet' && site && (
           <>
             {aiData && (
@@ -344,23 +351,8 @@ export default function AddSite({ onClose, onSiteAdded }) {
             </div>
             <p className="snippet-note">
               The snippet is ~1 KB, loads async, and sets no cookies. Works on any website or SPA.
-              {' '}Point the{' '}
-              <code style={{ background: 'var(--c-bg)', padding: '1px 4px', borderRadius: 3, fontSize: 11.5 }}>src</code>
-              {' '}URL to your deployed Klikstat domain in production.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ background: 'var(--c-bg)', border: '1.5px solid var(--c-border)', borderRadius: 12, padding: '14px 16px' }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--c-text-body2)', marginBottom: 4 }}>No site to test with?</div>
-                <div style={{ fontSize: 13, color: 'var(--c-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
-                  Fill the dashboard with 30 days of realistic demo data so you can explore every feature right away.
-                </div>
-                {demoDone
-                  ? <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-green-text)' }}>✓ Demo data added — go explore!</span>
-                  : <button type="button" className="btn-outline" onClick={handleDemo} disabled={demoLoading}>
-                      {demoLoading ? 'Generating…' : 'Generate demo data'}
-                    </button>
-                }
-              </div>
               <button className="done-btn" style={{ width: '100%' }} onClick={() => onSiteAdded(site)}>
                 Go to dashboard →
               </button>

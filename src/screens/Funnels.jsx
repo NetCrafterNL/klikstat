@@ -1,19 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './Funnels.css'
-import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 
-function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
-
-// ─── Create / Edit Modal ───────────────────────────────────────────────────
 function FunnelModal({ siteId, funnel, onClose, onSaved }) {
   const isEdit = !!funnel
   const [name, setName]     = useState(funnel?.name ?? '')
   const [steps, setSteps]   = useState(funnel?.steps ?? ['', ''])
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
-  const createFunnel = useMutation(api.funnels.create)
-  const updateFunnel = useMutation(api.funnels.update)
 
   function setStep(i, val) {
     setSteps(prev => prev.map((s, j) => j === i ? val : s))
@@ -29,12 +22,23 @@ function FunnelModal({ siteId, funnel, onClose, onSaved }) {
     setSaving(true)
     setError('')
     try {
+      let res, data
       if (isEdit) {
-        await updateFunnel({ funnelId: funnel._id, name: name.trim(), steps: clean })
+        res = await fetch(`/api/funnels/${funnel.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name.trim(), steps: clean }),
+        })
       } else {
-        await createFunnel({ siteId, name: name.trim(), steps: clean })
+        res = await fetch(`/api/funnels/${siteId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name.trim(), steps: clean }),
+        })
       }
-      onSaved()
+      if (!res.ok) throw new Error((await res.json()).error)
+      data = await res.json()
+      onSaved(data)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -104,14 +108,24 @@ function FunnelModal({ siteId, funnel, onClose, onSaved }) {
   )
 }
 
-// ─── Single funnel visualisation ──────────────────────────────────────────
 function FunnelCard({ funnel, siteId, range, onEdit, onDelete }) {
-  const days    = rangeToDays(range)
-  const funnelQ = useQuery(api.stats.getFunnelData, siteId ? { siteId, days, steps: funnel.steps ?? [] } : 'skip')
-  const data    = siteId ? funnelQ : null
-  const loading = siteId ? funnelQ === undefined : false
+  const [data, setData]     = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  const steps   = data ?? []
+  useEffect(() => {
+    if (!siteId) return
+    setLoading(true)
+    fetch(`/api/funnel-data/${siteId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steps: funnel.steps ?? [], range }),
+    })
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [siteId, range, funnel.steps])
+
+  const steps    = data ?? []
   const topCount = steps[0]?.count ?? 1
 
   return (
@@ -120,13 +134,13 @@ function FunnelCard({ funnel, siteId, range, onEdit, onDelete }) {
         <span className="funnel-card-title">{funnel.name}</span>
         <div className="funnel-card-actions">
           <button className="funnel-action-btn" onClick={() => onEdit(funnel)}>Edit</button>
-          <button className="funnel-action-btn danger" onClick={() => onDelete(funnel._id)}>Delete</button>
+          <button className="funnel-action-btn danger" onClick={() => onDelete(funnel.id)}>Delete</button>
         </div>
       </div>
 
       {loading ? (
         <div className="funnel-loading">
-          {funnel.steps.map((s, i) => (
+          {(funnel.steps || []).map((s, i) => (
             <div key={i} className="funnel-step-skeleton">
               <div className="funnel-skel-label" />
               <div className="funnel-skel-bar" style={{ width: `${90 - i * 18}%` }} />
@@ -178,22 +192,37 @@ function FunnelCard({ funnel, siteId, range, onEdit, onDelete }) {
   )
 }
 
-// ─── Main screen ───────────────────────────────────────────────────────────
 export default function Funnels({ siteId, range }) {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing]     = useState(null)
-  const deleteFunnel = useMutation(api.funnels.remove)
+  const [funnels, setFunnels]     = useState([])
+  const [loading, setLoading]     = useState(false)
 
-  const funnels = useQuery(api.funnels.list, siteId ? { siteId } : 'skip') ?? []
-  const loading = siteId ? funnels === undefined : false
+  useEffect(() => {
+    if (!siteId) return
+    setLoading(true)
+    fetch(`/api/funnels/${siteId}`)
+      .then(r => r.json())
+      .then(d => { setFunnels(d || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [siteId])
 
   async function handleDelete(funnelId) {
-    await deleteFunnel({ funnelId })
+    await fetch(`/api/funnels/${funnelId}`, { method: 'DELETE' })
+    setFunnels(prev => prev.filter(f => f.id !== funnelId))
   }
 
   function handleEdit(funnel) { setEditing(funnel); setShowModal(true) }
   function closeModal()       { setShowModal(false); setEditing(null) }
-  function afterSave()        { closeModal() }
+
+  function handleSaved(saved) {
+    if (editing) {
+      setFunnels(prev => prev.map(f => f.id === saved.id ? saved : f))
+    } else {
+      setFunnels(prev => [...prev, saved])
+    }
+    closeModal()
+  }
 
   return (
     <>
@@ -232,7 +261,7 @@ export default function Funnels({ siteId, range }) {
         <div className="funnels-list">
           {funnels.map(f => (
             <FunnelCard
-              key={f._id}
+              key={f.id}
               funnel={f}
               siteId={siteId}
               range={range}
@@ -248,7 +277,7 @@ export default function Funnels({ siteId, range }) {
           siteId={siteId}
           funnel={editing}
           onClose={closeModal}
-          onSaved={afterSave}
+          onSaved={handleSaved}
         />
       )}
     </>

@@ -1,9 +1,6 @@
-import { useState, useCallback } from 'react'
-import { useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import './App.css'
-import { useUser, useClerk } from '@clerk/react'
-import { useQuery, useMutation } from 'convex/react'
-import { api } from '../convex/_generated/api'
+import { supabase } from './lib/supabase'
 import TopBar from './components/TopBar'
 import AddSite from './components/AddSite'
 import Dashboard from './screens/Dashboard'
@@ -18,14 +15,13 @@ import Overview from './screens/Overview'
 import Retention from './screens/Retention'
 import Login from './screens/Login'
 
-const DEMO_SITE = { _id: null, name: 'Klikstat App', domain: 'app.klikstat.com' }
+const DEMO_SITE = { id: null, name: 'Klikstat App', domain: 'app.klikstat.com' }
 
 function SharePage({ token }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   useEffect(() => {
-    const convexUrl = import.meta.env.VITE_CONVEX_URL?.replace('.cloud', '.site') ?? ''
-    fetch(`${convexUrl}/public/${token}?days=30`)
+    fetch(`/public/${token}?days=30`)
       .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) }))
       .then(setData)
       .catch(e => setError(e.message))
@@ -63,13 +59,8 @@ function SharePage({ token }) {
   )
 }
 
-function AuthenticatedApp() {
-  const { user } = useUser()
-  const { signOut } = useClerk()
-  const sites = useQuery(api.sites.list) ?? []
-  const updateSite = useMutation(api.sites.update)
-  const removeSite = useMutation(api.sites.remove)
-
+function AuthenticatedApp({ user }) {
+  const [sites, setSites] = useState([])
   const [currentSiteIdx, setCurrentSiteIdx] = useState(0)
   const [screen, setScreen]                 = useState('dashboard')
   const [range, setRange]                   = useState('30d')
@@ -83,36 +74,59 @@ function AuthenticatedApp() {
     localStorage.setItem('ks-dark', darkMode ? '1' : '0')
   }, [darkMode])
 
-  const handleSiteAdded = useCallback((newSiteId) => {
+  useEffect(() => {
+    if (!user?.id) return
+    supabase.from('sites').select('*').eq('user_id', user.id).then(({ data }) => {
+      setSites(data || [])
+    })
+  }, [user?.id])
+
+  const reloadSites = useCallback(async () => {
+    if (!user?.id) return
+    const { data } = await supabase.from('sites').select('*').eq('user_id', user.id)
+    setSites(data || [])
+  }, [user?.id])
+
+  const handleSiteAdded = useCallback((newSite) => {
+    setSites(prev => [...prev, newSite])
     setShowAddSite(false)
     setScreen('dashboard')
   }, [])
 
   const handleLogout = useCallback(async () => {
-    await signOut()
-  }, [signOut])
+    await supabase.auth.signOut()
+  }, [])
 
   const handleTogglePublic = useCallback(async (site) => {
-    const newPublic = !site.isPublic
-    const updated = await updateSite({ siteId: site._id, isPublic: newPublic })
-    if (newPublic && updated?.publicToken) {
-      const url = `${window.location.origin}?share=${updated.publicToken}`
+    const newPublic = !site.is_public
+    const { data: updated } = await supabase
+      .from('sites')
+      .update({ is_public: newPublic })
+      .eq('id', site.id)
+      .select()
+      .single()
+
+    setSites(prev => prev.map(s => s.id === site.id ? updated : s))
+
+    if (newPublic && updated?.public_token) {
+      const url = `${window.location.origin}?share=${updated.public_token}`
       await navigator.clipboard.writeText(url).catch(() => {})
       alert(`Public dashboard enabled!\n\nShare link copied to clipboard:\n${url}`)
     }
-  }, [updateSite])
+  }, [])
 
   const handleDeleteSite = useCallback(async (site) => {
     if (!window.confirm(`Delete "${site.name}"?\n\nThis will permanently remove the site and all its analytics data. This cannot be undone.`)) return
-    await removeSite({ siteId: site._id })
+    await fetch(`/api/sites/${site.id}`, { method: 'DELETE' })
+    setSites(prev => prev.filter(s => s.id !== site.id))
     setCurrentSiteIdx(i => Math.max(0, i - 1))
     setScreen('dashboard')
-  }, [removeSite])
+  }, [])
 
   const currentSite = sites[currentSiteIdx] ?? null
-  const siteId      = currentSite?._id ?? null
+  const siteId      = currentSite?.id ?? null
   const siteName    = currentSite?.name ?? 'My Site'
-  const userName    = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? ''
+  const userName    = user?.user_metadata?.name ?? user?.email ?? ''
 
   return (
     <div className="app-shell" onClick={() => setSwitcherOpen(false)}>
@@ -142,7 +156,7 @@ function AuthenticatedApp() {
         {screen === 'realtime' && (
           <Realtime siteId={siteId} onOnlineCount={setRealtimeCount} />
         )}
-        {screen === 'overview'   && <Overview   range={range} onNavigateToSite={id => { const idx = sites.findIndex(s => s._id === id); if (idx >= 0) { setCurrentSiteIdx(idx); setScreen('dashboard') } }} />}
+        {screen === 'overview'   && <Overview   userId={user?.id} range={range} onNavigateToSite={id => { const idx = sites.findIndex(s => s.id === id); if (idx >= 0) { setCurrentSiteIdx(idx); setScreen('dashboard') } }} />}
         {screen === 'pages'      && <Pages      siteId={siteId} range={range} />}
         {screen === 'sources'    && <Sources    siteId={siteId} range={range} />}
         {screen === 'technology' && <Technology siteId={siteId} range={range} />}
@@ -162,7 +176,7 @@ function AuthenticatedApp() {
       </main>
 
       {showAddSite && (
-        <AddSite onClose={() => setShowAddSite(false)} onSiteAdded={handleSiteAdded} />
+        <AddSite user={user} onClose={() => setShowAddSite(false)} onSiteAdded={handleSiteAdded} />
       )}
     </div>
   )
@@ -185,7 +199,7 @@ function DemoApp() {
   return (
     <div className="app-shell" onClick={() => setSwitcherOpen(false)}>
       <TopBar
-        user={{ firstName: 'Demo', primaryEmailAddress: { emailAddress: 'demo@klikstat.com' } }}
+        user={{ user_metadata: { name: 'Demo' }, email: 'demo@klikstat.com' }}
         sites={[DEMO_SITE]}
         currentSiteIdx={0}
         switcherOpen={switcherOpen}
@@ -215,7 +229,18 @@ export default function App() {
   const shareToken = new URLSearchParams(window.location.search).get('share')
   if (shareToken) return <SharePage token={shareToken} />
 
-  const { isSignedIn, isLoaded } = useUser()
-  if (!isLoaded) return null
-  return isSignedIn ? <AuthenticatedApp /> : <DemoApp />
+  const [session, setSession] = useState(undefined)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (session === undefined) return null
+  return session ? <AuthenticatedApp user={session.user} /> : <DemoApp />
 }

@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import './Realtime.css'
-import { useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 import { activePages as SEED_PAGES, liveEvents as SEED_EVENTS, realtimeBars as SEED_BARS } from '../data/seed'
 
 const DEMO_RT = {
@@ -16,12 +14,11 @@ const DEMO_RT = {
 }
 
 function buildHistogram(rawBuckets) {
-  // rawBuckets = [{bucket: 0..29, count}] — bucket 0 = most recent minute
   const arr = new Array(30).fill(0)
   if (rawBuckets) {
     rawBuckets.forEach(b => {
       const idx = Math.min(29, Math.max(0, Number(b.bucket)))
-      arr[29 - idx] = Number(b.count) // reverse: index 0 = oldest
+      arr[29 - idx] = Number(b.count)
     })
   }
   return arr
@@ -50,31 +47,41 @@ function classifyReferrer(ref) {
 export default function Realtime({ siteId, onOnlineCount }) {
   const tickRef = useRef(0)
   const [, forceUpdate] = useState(0)
+  const [rtData, setRtData] = useState(null)
 
-  // Convex useQuery is reactive — auto-polls via Convex's WebSocket
-  const rtQuery = useQuery(api.stats.getRealtime, siteId ? { siteId } : 'skip')
+  useEffect(() => {
+    if (!siteId) {
+      onOnlineCount?.(DEMO_RT.onlineNow)
+      return
+    }
 
-  const rt = siteId ? (rtQuery ? {
-    onlineNow: rtQuery.online,
+    function poll() {
+      fetch(`/api/realtime/${siteId}`)
+        .then(r => r.json())
+        .then(d => {
+          setRtData(d)
+          onOnlineCount?.(Number(d.online ?? 0))
+        })
+        .catch(() => {})
+    }
+
+    poll()
+    const id = setInterval(poll, 10000)
+    return () => clearInterval(id)
+  }, [siteId])
+
+  const rt = siteId ? (rtData ? {
+    onlineNow: rtData.online,
     histogram: [],
     activePages: [],
-    liveEvents: rtQuery.sessions.map(s => ({
+    liveEvents: (rtData.sessions || []).map(s => ({
       country: s.country,
-      pathname: s.entryUrl ?? '/',
+      pathname: s.entry_url ?? '/',
       referrer: s.referrer ?? '',
-      ts: Math.floor((s.lastSeenAt ?? s.startedAt) / 1000),
+      ts: Math.floor(new Date(s.last_seen_at ?? s.started_at).getTime() / 1000),
     })),
   } : null) : DEMO_RT
 
-  useEffect(() => {
-    if (!siteId) onOnlineCount?.(DEMO_RT.onlineNow)
-  }, [siteId])
-
-  useEffect(() => {
-    if (rt) onOnlineCount?.(Number(rt.onlineNow ?? 0))
-  }, [rt])
-
-  // Force re-render every second to keep "X ago" fresh
   useEffect(() => {
     const id = setInterval(() => { tickRef.current++; forceUpdate(n => n + 1) }, 1000)
     return () => clearInterval(id)

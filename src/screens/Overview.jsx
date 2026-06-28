@@ -1,29 +1,21 @@
+import { useState, useEffect } from 'react'
 import './Overview.css'
-import { useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 import { downloadCSV } from '../lib/csv'
 
 function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
-function TrendMini({ visitors }) {
-  const max = Math.max(...visitors, 1)
-  const w = 52, h = 20
-  const pts = visitors.map((v, i) => ({
-    x: (i / (visitors.length - 1)) * w,
-    y: h - (v / max) * h * 0.9 - h * 0.05,
-  }))
-  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display:'block' }}>
-      <path d={d} fill="none" stroke="#5B4BE8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  )
-}
+export default function Overview({ userId, range, onNavigateToSite }) {
+  const [rows, setRows]   = useState(null)
+  const [loading, setLoading] = useState(false)
 
-export default function Overview({ range, onNavigateToSite }) {
-  const days  = rangeToDays(range)
-  const rows  = useQuery(api.stats.getAggregateStats, { days })
-  const loading = rows === undefined
+  useEffect(() => {
+    if (!userId) return
+    setLoading(true)
+    fetch(`/api/aggregate?user_id=${userId}&range=${range}`)
+      .then(r => r.json())
+      .then(data => { setRows(data); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [userId, range])
 
   const totals = (rows ?? []).reduce((acc, r) => ({
     visitors:  acc.visitors  + Number(r.visitors),
@@ -32,12 +24,10 @@ export default function Overview({ range, onNavigateToSite }) {
 
   function handleExport() {
     downloadCSV('klikstat-overview.csv', rows ?? [], [
-      { key: 'site_name',  label: 'Site' },
-      { key: 'domain',     label: 'Domain' },
-      { key: 'visitors',   label: 'Visitors' },
-      { key: 'pageviews',  label: 'Pageviews' },
-      { key: 'bounce_rate',label: 'Bounce Rate (%)' },
-      { key: 'revenue',    label: 'Revenue' },
+      { key: 'name',      label: 'Site' },
+      { key: 'domain',    label: 'Domain' },
+      { key: 'visitors',  label: 'Visitors' },
+      { key: 'pageviews', label: 'Pageviews' },
     ])
   }
 
@@ -55,7 +45,6 @@ export default function Overview({ range, onNavigateToSite }) {
         </button>
       </div>
 
-      {/* Totals row */}
       {!loading && rows && (
         <div className="ov-totals">
           {[
@@ -83,7 +72,7 @@ export default function Overview({ range, onNavigateToSite }) {
             <div key={i} className="ov-row">
               <div className="ov-row-bar" style={{ width:`${80-i*15}%` }}/>
               <span className="ov-col-main" style={{ background:'var(--c-violet-tint)', borderRadius:4, height:14, display:'block', width:'45%' }}/>
-              {[1,2,3,4].map(j => <span key={j} className="ov-col" style={{ background:'var(--c-bg)', borderRadius:4, height:14, display:'inline-block', width:50 }}/>)}
+              {[1,2].map(j => <span key={j} className="ov-col" style={{ background:'var(--c-bg)', borderRadius:4, height:14, display:'inline-block', width:50 }}/>)}
             </div>
           ))
         ) : !rows?.length ? (

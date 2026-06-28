@@ -1,7 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './Technology.css'
-import { useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 import { downloadCSV } from '../lib/csv'
 
 const TABS = ['Devices', 'Browsers', 'OS']
@@ -34,18 +32,24 @@ const DEMO = {
   os:       [{ name:'Windows', count:8200 }, { name:'macOS', count:5600 }, { name:'iOS', count:2800 }, { name:'Android', count:1800 }, { name:'Linux', count:600 }],
 }
 
-function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
-
 export default function Technology({ siteId, range }) {
   const [activeTab, setActiveTab] = useState('Devices')
+  const [tech, setTech]     = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  const days  = rangeToDays(range)
-  const techQ = useQuery(api.stats.getTechnology, siteId ? { siteId, days } : 'skip')
+  useEffect(() => {
+    if (!siteId) return
+    setLoading(true)
+    fetch(`/api/technology/${siteId}?range=${range}`)
+      .then(r => r.json())
+      .then(d => { setTech(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [siteId, range])
 
-  const tech    = siteId ? (techQ ?? null) : DEMO
-  const loading = siteId ? techQ === undefined : false
+  const displayTech = siteId ? (tech ?? null) : DEMO
+  const isLoading   = siteId ? loading : false
 
-  const rows     = tech?.[KEY[activeTab]] ?? []
+  const rows     = displayTech?.[KEY[activeTab]] ?? []
   const maxCount = rows[0]?.count ?? 1
 
   return (
@@ -53,28 +57,28 @@ export default function Technology({ siteId, range }) {
       <div className="tech-title-row">
         <h1 className="tech-title">Technology</h1>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-        <button
-          onClick={() => {
-            downloadCSV(`klikstat-technology-${activeTab.toLowerCase()}.csv`, rows, [
-              { key: 'name',  label: activeTab },
-              { key: 'count', label: 'Visitors' },
-            ])
-          }}
-          style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:10, background:'var(--c-surface)', border:'1.5px solid var(--c-border)', fontSize:12.5, fontWeight:700, color:'var(--c-text-muted2)', cursor:'pointer', flexShrink:0 }}
-          title="Export CSV"
-        >
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-            <path d="M6.5 1v7M4 6l2.5 2.5L9 6M1.5 9.5v1A1.5 1.5 0 003 12h7a1.5 1.5 0 001.5-1.5v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          CSV
-        </button>
-        <div className="tech-tabs">
-          {TABS.map(t => (
-            <button key={t} className={`tech-tab${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
-              {t}
-            </button>
-          ))}
-        </div>
+          <button
+            onClick={() => {
+              downloadCSV(`klikstat-technology-${activeTab.toLowerCase()}.csv`, rows, [
+                { key: 'name',  label: activeTab },
+                { key: 'count', label: 'Visitors' },
+              ])
+            }}
+            style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:10, background:'var(--c-surface)', border:'1.5px solid var(--c-border)', fontSize:12.5, fontWeight:700, color:'var(--c-text-muted2)', cursor:'pointer', flexShrink:0 }}
+            title="Export CSV"
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M6.5 1v7M4 6l2.5 2.5L9 6M1.5 9.5v1A1.5 1.5 0 003 12h7a1.5 1.5 0 001.5-1.5v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            CSV
+          </button>
+          <div className="tech-tabs">
+            {TABS.map(t => (
+              <button key={t} className={`tech-tab${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -85,7 +89,7 @@ export default function Technology({ siteId, range }) {
           <span className="tech-col">Share</span>
         </div>
 
-        {loading ? (
+        {isLoading ? (
           Array.from({length:4}).map((_,i) => (
             <div key={i} className="tech-row">
               <div className="tech-row-bar" style={{ width:`${85-i*18}%` }} />

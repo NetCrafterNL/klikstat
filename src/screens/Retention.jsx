@@ -1,8 +1,5 @@
+import { useState, useEffect } from 'react'
 import './Retention.css'
-import { useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-
-function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
 
 function cellColor(pct) {
   if (pct == null) return 'transparent'
@@ -18,12 +15,28 @@ function cellText(pct) {
 }
 
 export default function Retention({ siteId, range }) {
-  const weeks   = range === '7d' ? 4 : range === '90d' ? 12 : range === '365d' ? 20 : 8
-  const retQ    = useQuery(api.stats.getRetention, siteId ? { siteId, weeks } : 'skip')
-  const data    = siteId ? (retQ ?? null) : null
-  const loading = siteId ? retQ === undefined : false
+  const [data, setData]     = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  const maxWeek = data ? Math.max(...data.map(r => Object.keys(r.weeks).map(Number).reduce((a,b) => Math.max(a,b), 0))) : 0
+  useEffect(() => {
+    if (!siteId) return
+    setLoading(true)
+    fetch(`/api/retention/${siteId}?range=${range}`)
+      .then(r => r.json())
+      .then(rows => {
+        // Normalize from API format to display format
+        const normalized = (rows || []).map(row => {
+          const weeks = {}
+          ;(row.retention || []).forEach(r => { weeks[String(r.week)] = Math.round(r.pct) })
+          return { cohort_week: `Week ${row.cohortWeek + 1}`, cohort_size: row.size, weeks }
+        })
+        setData(normalized)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [siteId, range])
+
+  const maxWeek = data ? Math.max(...data.map(r => Object.keys(r.weeks).map(Number).reduce((a,b) => Math.max(a,b), 0)), 0) : 0
 
   return (
     <>

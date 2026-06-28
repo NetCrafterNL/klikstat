@@ -4,16 +4,16 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npx convex dev\" \"vite\"",
-    "dev:vite": "vite",
-    "convex:dev": "npx convex dev",
-    "convex:deploy": "npx convex deploy",
+    "dev": "vite",
+    "dev:api": "node server/api.js",
     "build": "vite build",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "start": "node server/api.js"
   },
   "dependencies": {
-    "@clerk/react": "^6.11.0",
-    "convex": "^1.42.0",
+    "@supabase/supabase-js": "^2.49.4",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
     "nanoid": "^5.1.15",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -27,7 +27,6 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "concurrently": "^10.0.3",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",

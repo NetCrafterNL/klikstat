@@ -3,11 +3,13 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // When running `vite dev` directly (without vercel dev), proxy /api to port 3000
-  // where vercel dev would be running the serverless functions.
   server: {
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': 'http://localhost:3001',
+      '/collect': 'http://localhost:3001',
+      '/public': 'http://localhost:3001',
+      '/v1': 'http://localhost:3001',
+      '/ai': 'http://localhost:3001',
     },
   },
 })

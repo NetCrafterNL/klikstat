@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 import './Dashboard.css'
-import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 import { COUNTRY_NAMES } from '../data/countries'
 import { chartData as SEED_CHART, channels as SEED_CHANNELS, topPages as SEED_PAGES, locations as SEED_LOCS } from '../data/seed'
 
@@ -89,8 +87,6 @@ function HeroDelta({ current, previous }) {
   )
 }
 
-function rangeToDays(r) { return r === '1d' ? 1 : r === '7d' ? 7 : r === '90d' ? 90 : r === '365d' ? 365 : 30 }
-
 function AnnotationModal({ onSave, onClose }) {
   const [label, setLabel] = useState('')
   const [color, setColor] = useState('#5B4BE8')
@@ -127,47 +123,66 @@ function AnnotationModal({ onSave, onClose }) {
 }
 
 export default function Dashboard({ siteId, siteName, userName, range = '30d', preloadedStats }) {
-  const days = rangeToDays(range)
+  const [stats, setStats]         = useState(null)
+  const [prevStats, setPrevStats] = useState(null)
+  const [annotations, setAnnotations] = useState([])
+  const [cities, setCities]       = useState(null)
   const [annotModal, setAnnotModal] = useState(null)
-  const [locTab, setLocTab]         = useState('country')
+  const [locTab, setLocTab]       = useState('country')
+  const [loading, setLoading]     = useState(false)
 
-  const statsQuery    = useQuery(api.stats.getSiteStats,       siteId ? { siteId, days } : 'skip')
-  const prevQuery     = useQuery(api.stats.getComparisonStats, siteId ? { siteId, days } : 'skip')
-  const annotsQuery   = useQuery(api.annotations.list,         siteId ? { siteId, days } : 'skip')
-  const citiesQuery   = useQuery(api.stats.getCityBreakdown,   (siteId && locTab === 'city') ? { siteId, days } : 'skip')
+  useEffect(() => {
+    if (!siteId) return
+    setLoading(true)
+    const p1 = fetch(`/api/stats/${siteId}?range=${range}`).then(r => r.json())
+    const p2 = fetch(`/api/comparison/${siteId}?range=${range}`).then(r => r.json())
+    const p3 = fetch(`/api/annotations/${siteId}?range=${range}`).then(r => r.json())
+    Promise.all([p1, p2, p3]).then(([s, prev, annots]) => {
+      setStats(s)
+      setPrevStats(prev)
+      setAnnotations(annots)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [siteId, range])
 
-  const createAnnotation = useMutation(api.annotations.create)
-  const deleteAnnotation = useMutation(api.annotations.remove)
-
-  const stats       = preloadedStats ?? (siteId ? statsQuery : DEMO_STATS)
-  const prevStats   = siteId ? prevQuery : null
-  const annotations = siteId ? (annotsQuery ?? []) : []
-  const cities      = siteId ? (citiesQuery ?? null) : null
-  const loading     = siteId ? stats === undefined : false
-
-  const firstName = (userName ?? '').split(/\s+/)[0] || 'there'
+  useEffect(() => {
+    if (!siteId || locTab !== 'city' || !stats) return
+    // cities are included in the stats response
+    setCities(stats.cities || [])
+  }, [siteId, locTab, stats])
 
   async function handleSaveAnnotation(label, color) {
     if (!siteId) return
     const date = annotModal?.date
     setAnnotModal(null)
-    await createAnnotation({ siteId, date, label, color })
+    const res = await fetch(`/api/annotations/${siteId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, label, color }),
+    })
+    const annot = await res.json()
+    setAnnotations(prev => [...prev, annot])
   }
 
   async function handleDeleteAnnotation(annotationId) {
-    await deleteAnnotation({ annotationId })
+    await fetch(`/api/annotations/${annotationId}`, { method: 'DELETE' })
+    setAnnotations(prev => prev.filter(a => a.id !== annotationId))
   }
 
-  const { line, area, last } = buildChartPath(stats?.chart)
+  const displayStats = preloadedStats ?? (siteId ? stats : DEMO_STATS)
+  const isLoading = siteId ? loading : false
+  const firstName = (userName ?? '').split(/\s+/)[0] || 'there'
 
-  const topPages  = stats?.topPages  ?? []
+  const { line, area, last } = buildChartPath(displayStats?.chart)
+
+  const topPages  = displayStats?.topPages  ?? []
   const maxPage   = topPages[0]?.count ?? 1
-  const locations = stats?.locations ?? []
+  const locations = displayStats?.locations ?? []
   const maxLoc    = locations[0]?.count ?? 1
-  const channels  = stats?.channels  ?? []
+  const channels  = displayStats?.channels  ?? []
   const totalCh   = channels.reduce((s, c) => s + Number(c.count), 0) || 1
 
-  const chartDays    = stats?.chart ?? []
+  const chartDays    = displayStats?.chart ?? []
   const isHourly     = chartDays.length > 0 && (chartDays[0]?.day ?? '').includes('T')
   const labelIdxs    = chartDays.length > 1
     ? [0, Math.floor(chartDays.length * 0.25), Math.floor(chartDays.length * 0.5), Math.floor(chartDays.length * 0.75), chartDays.length - 1]
@@ -188,12 +203,12 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
         <div className="hero-circle hero-circle-2" />
         <p className="hero-greeting">{greet(firstName)} — here&apos;s how {siteName} is doing</p>
         <div className="hero-metric">
-          {loading
+          {isLoading
             ? <span className="hero-value" style={{ opacity: .4 }}>—</span>
-            : <span className="hero-value">{Number(stats?.visitors ?? 0).toLocaleString()}</span>
+            : <span className="hero-value">{Number(displayStats?.visitors ?? 0).toLocaleString()}</span>
           }
-          {!loading && prevStats && (
-            <HeroDelta current={stats?.visitors ?? 0} previous={prevStats?.visitors ?? 0} />
+          {!isLoading && prevStats && (
+            <HeroDelta current={displayStats?.visitors ?? 0} previous={prevStats?.visitors ?? 0} />
           )}
         </div>
         <p className="hero-caption">unique visitors · {RANGE_LABELS[range] ?? 'last 30 days'}</p>
@@ -209,13 +224,13 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
               </span>
               <span className="stat-label">{s.label}</span>
             </div>
-            {loading
+            {isLoading
               ? <><Skeleton h={28} w="60%" mb={6} /><Skeleton h={18} w="40%" /></>
               : <>
-                  <div className="stat-value">{s.fmt(stats?.[s.key] ?? 0)}</div>
+                  <div className="stat-value">{s.fmt(displayStats?.[s.key] ?? 0)}</div>
                   {prevStats && (
                     <TrendBadge
-                      current={stats?.[s.key] ?? 0}
+                      current={displayStats?.[s.key] ?? 0}
                       previous={prevStats?.[s.key] ?? 0}
                       lowerIsBetter={s.lowerIsBetter}
                     />
@@ -233,7 +248,7 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
             <span className="card-title">Visitors over time</span>
             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
               {isHourly && <span style={{ fontSize:11.5, fontWeight:700, color:'var(--c-text-muted3)' }}>Hourly</span>}
-              {siteId && !loading && !isHourly && (
+              {siteId && !isLoading && !isHourly && (
                 <button
                   title="Add annotation"
                   onClick={() => {
@@ -251,7 +266,7 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
             </div>
           </div>
           <div className="chart-wrap" style={{ position:'relative' }}>
-            {loading ? (
+            {isLoading ? (
               <div style={{ height: 130, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Skeleton w="100%" h={130} r={12} />
               </div>
@@ -270,7 +285,6 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
                   </defs>
                   <path d={area} fill="url(#areaGrad)"/>
                   <path d={line} fill="none" stroke="#5B4BE8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                  {/* Annotation lines */}
                   {!isHourly && annotations.map(a => {
                     const idx = chartDays.findIndex(d => d.day === a.date)
                     if (idx < 0) return null
@@ -296,7 +310,7 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
                       <span key={a.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11.5, fontWeight:600, color:'var(--c-text-muted2)', background:'var(--c-bg)', borderRadius:6, padding:'2px 8px 2px 6px', border:'1px solid var(--c-border)' }}>
                         <span style={{ width:8, height:8, borderRadius:'50%', background:a.color, flexShrink:0 }}/>
                         {a.label}
-                        <button onClick={() => handleDeleteAnnotation(a._id)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--c-text-muted3)', fontSize:13, lineHeight:1, padding:0, marginLeft:2 }}>×</button>
+                        <button onClick={() => handleDeleteAnnotation(a.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--c-text-muted3)', fontSize:13, lineHeight:1, padding:0, marginLeft:2 }}>×</button>
                       </span>
                     ))}
                   </div>
@@ -310,7 +324,7 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
           <div className="card-header">
             <span className="card-title">Top channels</span>
           </div>
-          {loading ? (
+          {isLoading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[1,2,3,4].map(i => <Skeleton key={i} h={14} r={4} />)}
             </div>
@@ -346,7 +360,7 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
             <span className="card-title">Top pages</span>
             <span className="report-col-label">Visitors</span>
           </div>
-          {loading ? [1,2,3,4,5].map(i => <Skeleton key={i} h={28} r={6} mb={6} />) :
+          {isLoading ? [1,2,3,4,5].map(i => <Skeleton key={i} h={28} r={6} mb={6} />) :
            topPages.length === 0
             ? <div style={{ color: 'var(--c-text-muted3)', fontSize: 13 }}>No data yet.</div>
             : topPages.map(p => (
@@ -371,7 +385,7 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
               ))}
             </div>
           </div>
-          {loading ? [1,2,3,4,5].map(i => <Skeleton key={i} h={28} r={6} mb={6} />) :
+          {isLoading ? [1,2,3,4,5].map(i => <Skeleton key={i} h={28} r={6} mb={6} />) :
            locTab === 'country' ? (
             locations.length === 0
               ? <div style={{ color: 'var(--c-text-muted3)', fontSize: 13 }}>No data yet.</div>
@@ -390,10 +404,10 @@ export default function Dashboard({ siteId, siteName, userName, range = '30d', p
                 ? <div style={{ color: 'var(--c-text-muted3)', fontSize: 13 }}>No city data yet.</div>
                 : cities.map((c, i) => (
                     <div key={i} className="loc-row">
-                      <div className="loc-bar-bg" style={{ width: `${(c.visitors/(cities[0]?.visitors||1)*100).toFixed(1)}%`, background: 'var(--c-green-tint)' }} />
+                      <div className="loc-bar-bg" style={{ width: `${(c.count/(cities[0]?.count||1)*100).toFixed(1)}%`, background: 'var(--c-green-tint)' }} />
                       <span className="loc-code">{c.country}</span>
                       <span className="loc-name">{c.city}</span>
-                      <span className="loc-count">{Number(c.visitors).toLocaleString()}</span>
+                      <span className="loc-count">{Number(c.count).toLocaleString()}</span>
                     </div>
                   ))
            )

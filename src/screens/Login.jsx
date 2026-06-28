@@ -1,6 +1,6 @@
-import { SignIn, SignUp } from '@clerk/react'
 import { useState } from 'react'
 import './Login.css'
+import { supabase } from '../lib/supabase'
 
 const SPARKLINE_PTS = [28,22,18,24,20,16,22,26,20,24,22,28,26,30,28]
 
@@ -14,7 +14,34 @@ function sparklinePath(pts, W=240, H=32) {
 }
 
 export default function Login({ onBack }) {
-  const [mode, setMode] = useState('login')
+  const [mode, setMode]       = useState('login')
+  const [email, setEmail]     = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError]     = useState('')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    setMessage('')
+    setLoading(true)
+    try {
+      if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+        // App will react to auth state change automatically
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password })
+        if (error) throw error
+        setMessage('Check your email to confirm your account before signing in.')
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="login-shell">
@@ -54,21 +81,59 @@ export default function Login({ onBack }) {
           <div className="login-tabs">
             <button
               className={`login-tab ${mode === 'login' ? 'active' : ''}`}
-              onClick={() => setMode('login')}
+              onClick={() => { setMode('login'); setError(''); setMessage('') }}
             >Sign in</button>
             <button
               className={`login-tab ${mode === 'register' ? 'active' : ''}`}
-              onClick={() => setMode('register')}
+              onClick={() => { setMode('register'); setError(''); setMessage('') }}
             >Create account</button>
           </div>
 
-          <div className="clerk-embed">
-            {mode === 'login' ? (
-              <SignIn routing="hash" />
-            ) : (
-              <SignUp routing="hash" />
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--c-text-muted)', marginBottom: 6 }}>Email address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoFocus
+                placeholder="you@example.com"
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--c-border-input)', fontSize: 14, fontWeight: 500, background: 'var(--c-bg)', color: 'var(--c-text-body)', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--c-text-muted)', marginBottom: 6 }}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                minLength={6}
+                placeholder={mode === 'register' ? 'At least 6 characters' : '••••••••'}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--c-border-input)', fontSize: 14, fontWeight: 500, background: 'var(--c-bg)', color: 'var(--c-text-body)', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {error && (
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#DC2626', background: '#FEE2E2', padding: '8px 12px', borderRadius: 8 }}>
+                {error}
+              </div>
             )}
-          </div>
+            {message && (
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#1F9D55', background: '#E7F6EC', padding: '8px 12px', borderRadius: 8 }}>
+                {message}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ width: '100%', padding: '11px 16px', borderRadius: 10, background: 'var(--c-primary)', color: 'white', border: 'none', fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}
+            >
+              {loading ? (mode === 'login' ? 'Signing in…' : 'Creating account…') : (mode === 'login' ? 'Sign in' : 'Create account')}
+            </button>
+          </form>
 
           {onBack && (
             <button
